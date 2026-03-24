@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL Zusteller - GTA City</title>
+    <title>DHL GTA City - Advanced Map & Touch</title>
     <style>
         body { 
             margin: 0; 
             overflow: hidden; 
             background-color: #333; 
             font-family: sans-serif;
-            touch-action: none; 
+            touch-action: none; /* Prevents scrolling on mobile */
         }
-        canvas { 
+        canvas#gameCanvas { 
             display: block; 
         }
         #ui { 
@@ -24,10 +24,27 @@
             padding: 10px;
             border-radius: 8px;
             pointer-events: none; 
+            z-index: 10;
         }
         #speedo {
             font-size: 20px;
             color: #ffcc00;
+        }
+        /* Style for the fixed touch controller container */
+        #touchControllerContainer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 220px;
+            height: 220px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
     </style>
 </head>
@@ -36,15 +53,20 @@
     <div id="ui">
         <h3 style="margin: 0 0 5px 0;">DHL GTA City</h3>
         <p style="margin: 3px 0; font-size: 12px;"><strong>PC:</strong> Pfeiltasten</p>
-        <p style="margin: 3px 0; font-size: 12px;"><strong>Handy:</strong> Drag in Fahrtrichtung</p>
         <div id="speedo">0 km/h</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
+    <div id="touchControllerContainer">
+        <canvas id="controllerCanvas" width="200" height="200"></canvas>
+    </div>
+
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const controllerCanvas = document.getElementById('controllerCanvas');
+        const cctx = controllerCanvas.getContext('2d');
 
         function resize() {
             canvas.width = window.innerWidth;
@@ -53,351 +75,640 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // --- WELT & STADT-LAYOUT ---
-        const worldBounds = { minX: -2000, minY: -2000, maxX: 2000, maxY: 2000, width: 4000, height: 4000 };
+        // --- ENHANCED WORLD & MAP LAYOUT ---
+        const worldBounds = { minX: -2500, minY: -2500, maxX: 2500, maxY: 2500, width: 5000, height: 5000 };
         
-        // Geländetypen definieren (für Reibung und Kollision)
-        const TERRAIN = {
-            GRASS: { color: '#4caf50', friction: 0.85, canDrive: true },
-            ASPHALT: { color: '#555', friction: 0.94, canDrive: true }, // Hauptstraßen
-            SIDEWALK: { color: '#aaa', friction: 0.88, canDrive: true }, // Gehwege / Gassen
-            PEDESTRIAN: { color: '#d7ccc8', friction: 0.90, canDrive: true }, // Fußgängerzone
-            BUILDING: { color: '#777', friction: 0.1, canDrive: false } // Hindernisse (Solid)
+        // Detailed map data structure
+        const mapData = {
+            roads: [],
+            buildings: [],
+            alleys: [], // narrower roads
+            pedestrianZones: [],
+            trees: [],
+            fences: [], // line segments
+            staticCars: [],
+            pointsOfInterest: [] // like church or park
         };
 
-        // Straßennetz definieren
-        const roads = [
-            // --- CITY RING ---
-            { x: -1000, y: -1000, w: 2000, h: 50, type: TERRAIN.ASPHALT }, // Oben
-            { x: -1000, y: 1000, w: 2000, h: 50, type: TERRAIN.ASPHALT },  // Unten
-            { x: -1000, y: -1000, w: 50, h: 2050, type: TERRAIN.ASPHALT }, // Links
-            { x: 1000, y: -1000, w: 50, h: 2050, type: TERRAIN.ASPHALT },  // Rechts
+        // Geländetypen und Reibung
+        const TERRAIN = {
+            GRASS: { color: '#3f8f3f', friction: 0.85 },
+            ASPHALT: { color: '#444', friction: 0.94 }, // Major roads
+            SIDEWALK: { color: '#888', friction: 0.88 }, // Alleys
+            PEDESTRIAN: { color: '#bfac9f', friction: 0.90 } // Pedestrian zone
+        };
 
-            // Hauptverkehrsadern (Asphalt)
-            { x: -2000, y: -25, w: 4000, h: 50, type: TERRAIN.ASPHALT },  // West-Ost Achse
-            { x: -25, y: -2000, w: 50, h: 4000, type: TERRAIN.ASPHALT },  // Nord-Süd Achse
+        function addRoad(x, y, w, h, type=TERRAIN.ASPHALT) { mapData.roads.push({ x, y, w, h, type }); }
+        function addBuilding(x, y, w, h) { mapData.buildings.push({ x, y, w, h }); }
+        function addAlley(x, y, w, h) { mapData.alleys.push({ x, y, w, h }); }
+        function addPedZone(x, y, w, h) { mapData.pedestrianZones.push({ x, y, w, h }); }
+        function addTree(x, y) { mapData.trees.push({ x, y, r: 15 + Math.random() * 10 }); }
+        function addFence(x1, y1, x2, y2) { mapData.fences.push({ x1, y1, x2, y2 }); }
 
-            // Gassen und engere Wege (SIDEWALK / PEDESTRIAN)
-            // Innenstadt (innerhalb City Ring)
-            { x: -300, y: -300, w: 600, h: 600, type: TERRAIN.PEDESTRIAN }, // Fußgängerzone Zentrum
-            { x: -300, y: -1000, w: 30, h: 700, type: TERRAIN.SIDEWALK },  // Gasse Nord
-            { x: 300, y: -1000, w: 30, h: 700, type: TERRAIN.SIDEWALK },   // Gasse Nord
-            { x: -1000, y: 300, w: 700, h: 30, type: TERRAIN.SIDEWALK },   // Gasse West
-            { x: 300, y: 300, w: 700, h: 30, type: TERRAIN.SIDEWALK },    // Gasse Ost
+        // --- MAP GENERATION ---
 
-            // Vorstadt Gassen (Scattered)
-            { x: -1800, y: -1500, w: 300, h: 20, type: TERRAIN.SIDEWALK },
-            { x: 1500, y: 1200, w: 20, h: 400, type: TERRAIN.SIDEWALK },
-        ];
+        // CITY RING (Asphalt, large)
+        const ringSize = 1200; const ringW = 60;
+        addRoad(-ringSize, -ringSize, ringSize*2, ringW); // Top
+        addRoad(-ringSize, ringSize-ringW, ringSize*2, ringW); // Bottom
+        addRoad(-ringSize, -ringSize, ringW, ringSize*2); // Left
+        addRoad(ringSize-ringW, -ringSize, ringW, ringSize*2); // Right
 
-        // Gebäude definieren
-        const buildings = [];
-        function addBuildingBlock(x, y, w, h) {
-            buildings.push({ x: x, y: y, w: w, h: h });
-        }
+        // MAIN CROSS (major avenues, Asphalt, very large)
+        const majorAveW = 80;
+        addRoad(-2500, -majorAveW/2, 5000, majorAveW); // W-E
+        addRoad(-majorAveW/2, -2500, majorAveW, 5000); // N-S
 
-        // Innenstadt Blöcke
-        for(let i=0; i<3; i++) {
-            for(let j=0; j<3; j++) {
-                if(i==1 && j==1) continue; // Zentrum frei lassen (Pedestrian Zone)
-                addBuildingBlock(-900 + i*600, -900 + j*600, 400, 400); // Große Blöcke
-                addBuildingBlock(-450 + i*600, -900 + j*600, 100, 400); // Kleinere Lücken-Gebäude
+        // INNER CITY STRUCTURE
+        // Pedestrian zone (light colored paved area)
+        addPedZone(-400, -400, 800, 800); 
+        // Alleys (narrow grey roads)
+        addAlley(-400, -majorAveW/2 - 10, 30, ringSize - majorAveW/2);
+        addAlley(370, -majorAveW/2 - 10, 30, ringSize - majorAveW/2);
+        addAlley(-majorAveW/2 - 10, -400, ringSize - majorAveW/2, 30);
+        addAlley(-majorAveW/2 - 10, 370, ringSize - majorAveW/2, 30);
+
+        // Buildings: Center blocks (GTA illustrative style, varying footprints)
+        for(let i=0; i<4; i++) {
+            for(let j=0; j<4; j++) {
+                if(i>=1 && i<=2 && j>=1 && j<=2) continue; // Leave central ped zone open
+                let xBase = -ringSize + i*600 + 80;
+                let yBase = -ringSize + j*600 + 80;
+                // Add diverse building footprints per block
+                for(let b=0; b<3+Math.random()*4; b++){
+                    addBuilding(xBase + Math.random()*200, yBase + Math.random()*200, 100 + Math.random()*80, 100 + Math.random()*80);
+                }
             }
         }
 
-        // Vorstadt Einfamilienhäuser (Scattered)
-        for(let i=0; i<40; i++) {
-            let x = Math.random() < 0.5 ? Math.random()*-800-1100 : Math.random()*800+1100;
-            let y = Math.random() < 0.5 ? Math.random()*-800-1100 : Math.random()*800+1100;
-            addBuildingBlock(x, y, 40 + Math.random()*30, 40 + Math.random()*30);
+        // OUTER AREA: Fenced plots and houses
+        const outerStep = 400;
+        for(let x=-2300; x<2300; x+=outerStep){
+            for(let y=-2300; y<2300; y+=outerStep){
+                if(Math.abs(x)<1300 && Math.abs(y)<1300) continue; // Inner city area
+                // Plot fence
+                let plotSize = outerStep - 20;
+                let x1 = x; let y1 = y; let x2 = x + plotSize; let y2 = y + plotSize;
+                addFence(x1, y1, x2, y1); addFence(x2, y1, x2, y2); addFence(x2, y2, x1, y2); addFence(x1, y2, x1, y1);
+                // Scatter trees in plot or outside
+                for(let t=0; t<1+Math.random()*3; t++){ addTree(x + Math.random()*plotSize, y + Math.random()*plotSize); }
+                // Place a building/house inside
+                addBuilding(x + 50 + Math.random()*100, y + 50 + Math.random()*100, 100 + Math.random()*50, 100 + Math.random()*50);
+            }
+        }
+
+        // SPECIFIC POIs: Church in the center ped zone, Town Hall
+        addBuilding(-150, -350, 100, 300); // Church Nave
+        addBuilding(-100, -380, 50, 50); // Steeple base
+        
+        // townhall near ped zone
+        addBuilding(500, -300, 300, 200);
+
+        // Scatter trees globally outside center
+        for(let i=0; i<100; i++){
+            let x = Math.random()*4000 - 2000;
+            let y = Math.random()*4000 - 2000;
+            if(Math.abs(x) > 1000 || Math.abs(y) > 1000) addTree(x, y);
+        }
+
+        // --- FIXED TOUCH CONTROLLER UI ---
+        const touchController = {
+            cx: 100, cy: 100, r: 80, // Center and radius within its canvas
+            sectors: [], // 6 distinct areas
+            activeSector: null,
+            touching: false,
+            actions: { FWD_L: false, FWD_S: false, FWD_R: false, BWD_L: false, BWD_S: false, BWD_R: false }
+        };
+
+        // Function to check if a point is within a given polygon path (for complex sectors)
+        function isPointInPath(tx, ty, path) {
+            let inside = false;
+            for (let i = 0, j = path.length - 1; i < path.length; j = i++) {
+                let xi = path[i].x, yi = path[i].y;
+                let xj = path[j].x, yj = path[j].y;
+                if (((yi > ty) != (yj > ty)) && (tx < (xj - xi) * (ty - yi) / (yj - yi) + xi)) {
+                    inside = !inside;
+                }
+            }
+            return inside;
+        }
+
+        // Drawing the illustrative sectors and curves as requested
+        function drawTouchController() {
+            cctx.clearRect(0, 0, controllerCanvas.width, controllerCanvas.height);
+            cctx.save();
+            cctx.translate(touchController.cx, touchController.cy);
+            
+            // Draw full illustrative border circle
+            cctx.beginPath();
+            cctx.arc(0, 0, touchController.r, 0, Math.PI * 2);
+            cctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            cctx.lineWidth = 4;
+            cctx.stroke();
+
+            // Highlight the active sector if touching
+            if (touchController.touching && touchController.activeSector) {
+                let s = touchController.activeSector;
+                cctx.beginPath();
+                // sectors are defined as polar segments [startAngle, endAngle, innerR, outerR]
+                // and a boolean for inner/outer half. Let's simplify drawing to arcs and lines.
+                // The illustrative curves are drawn over simplified sectors.
+                // Let's use simple arcs and lines for highlighting the *functional* hit areas.
+                // The user's requested curved lines are illustrative.
+                // Let's draw the 6 basic regions and highlights.
+
+                // functional division: 3 sectors in each half
+                let angleWidth = Math.PI / 3; // 60 degrees
+                // Map sector ID (0-5) to drawing logic
+                let isTop = s.id < 3;
+                let topOffset = Math.PI / 6; // start at -90deg, draw 60, then 60, then 60
+                
+                // Let's use simpler drawing logic for functional sectors
+                let drawAngle = 0;
+                let innerRad = 10;
+                
+                if (s.id == 0) drawAngle = -Math.PI / 2 - topOffset; // FWD_L
+                else if (s.id == 1) drawAngle = -Math.PI / 2 + angleWidth/2; // FWD_S. Fwd straight is angle -PI/2 to 0 range. center at 0.
+                // Re-calculating angles based on straight = -PI/2 (up). Fwd straight should be -PI/2 - 30 to -PI/2 + 30.
+                // Fwd L: <-PI/2 - 30. Fwd R: > -PI/2 + 30.
+                // Bwd straight should be PI/2 - 30 to PI/2 + 30.
+                // Bwd L: <PI/2 - 30 (towards PI). Bwd R: > PI/2 + 30 (towards 0).
+                
+                // FUNCTIONAL SECTOR DRAWING LOGIC (highlights)
+                cctx.beginPath();
+                if (isTop) {
+                    let start;
+                    if (s.id == 0) start = -Math.PI - topOffset; // fwd_l
+                    else if (s.id == 1) start = -Math.PI + topOffset; // fwd_s. fwd_s is -PI + PI/3 sector. center is at -PI/2 (up)
+                    else start = -Math.PI + Math.PI/3 + topOffset; // fwd_r. 
+                    // this logic is wrong based on standard canvas angles (0 is right, PI/2 is down).
+                    // fwd (up) is -PI/2. sector width PI/3 (60 deg).
+                    // fwd_s sector: [-PI/2 - PI/6, -PI/2 + PI/6] = [-4PI/6, -2PI/6] = [-2PI/3, -PI/3]
+                    // fwd_l sector: [-PI/2 - PI/6 - PI/3, -PI/2 - PI/6] = [-PI, -2PI/3]
+                    // fwd_r sector: [-PI/2 + PI/6, -PI/2 + PI/6 + PI/3] = [-PI/3, 0]
+                    
+                    // let's create 6 simple arcs and lines.
+                    let base = -PI/2;
+                    let width = PI/3; // 60 deg
+                    let s_start;
+                    if (s.id == 0) s_start = base - width/2 - width; // L
+                    else if (s.id == 1) s_start = base - width/2; // S
+                    else s_start = base + width/2; // R
+                    cctx.arc(0, 0, touchController.r, s_start, s_start + width);
+                    cctx.lineTo(0,0);
+                } else {
+                    let base = PI/2; // down
+                    let width = PI/3;
+                    let s_start;
+                    if (s.id == 3) s_start = base - width/2 - width; // L (towards left/PI)
+                    else if (s.id == 4) s_start = base - width/2; // S (straight/PI/2)
+                    else s_start = base + width/2; // R (towards right/0)
+                    cctx.arc(0, 0, touchController.r, s_start, s_start + width);
+                    cctx.lineTo(0,0);
+                }
+                cctx.fillStyle = 'rgba(255, 204, 0, 0.5)';
+                cctx.fill();
+                cctx.strokeStyle = '#ffcc00';
+                cctx.lineWidth = 2;
+                cctx.stroke();
+            }
+
+            // Draw illustrative curved lines based on user's sketch
+            cctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            cctx.lineWidth = 3;
+            // Center horizontal line
+            cctx.beginPath(); cctx.moveTo(-touchController.r, 0); cctx.lineTo(touchController.r, 0); cctx.stroke();
+            // Two curves. Illustrative, functional division is sector-based.
+            cctx.beginPath();
+            // Curve from left towards center-top
+            cctx.moveTo(-touchController.r * 0.7, -touchController.r * 0.3);
+            cctx.bezierCurveTo(-touchController.r * 0.5, -touchController.r * 0.8, -touchController.r * 0.1, -touchController.r * 0.5, 0, -touchController.r * 0.9);
+            // Curve from right towards center-top
+            cctx.moveTo(touchController.r * 0.7, -touchController.r * 0.3);
+            cctx.bezierCurveTo(touchController.r * 0.5, -touchController.r * 0.8, touchController.r * 0.1, -touchController.r * 0.5, 0, -touchController.r * 0.9);
+            // Repeat illustrative curves for bottom half.
+            cctx.moveTo(-touchController.r * 0.7, touchController.r * 0.3);
+            cctx.bezierCurveTo(-touchController.r * 0.5, touchController.r * 0.8, -touchController.r * 0.1, touchController.r * 0.5, 0, touchController.r * 0.9);
+            cctx.moveTo(touchController.r * 0.7, touchController.r * 0.3);
+            cctx.bezierCurveTo(touchController.r * 0.5, touchController.r * 0.8, touchController.r * 0.1, touchController.r * 0.5, 0, touchController.r * 0.9);
+            cctx.stroke();
+
+            // Draw illustrative arrows inside sectors to match user sketch
+            drawControllerArrow(-touchController.r*0.6, -touchController.r*0.5, -Math.PI*0.7); // FWD_L
+            drawControllerArrow(0, -touchController.r*0.6, -Math.PI*0.5); // FWD_S
+            drawControllerArrow(touchController.r*0.6, -touchController.r*0.5, -Math.PI*0.3); // FWD_R
+            
+            drawControllerArrow(-touchController.r*0.6, touchController.r*0.5, Math.PI*0.7); // BWD_L
+            drawControllerArrow(0, touchController.r*0.6, Math.PI*0.5); // BWD_S
+            drawControllerArrow(touchController.r*0.6, touchController.r*0.5, Math.PI*0.3); // BWD_R
+
+            cctx.restore();
+        }
+        
+        // Helper to draw little arrows within the sectors
+        function drawControllerArrow(px, py, angle) {
+            cctx.save();
+            cctx.translate(px, py);
+            cctx.rotate(angle);
+            cctx.strokeStyle = 'rgba(255, 255, 255, 0.4)'; cctx.lineWidth = 3;
+            cctx.beginPath(); cctx.moveTo(-10, -10); cctx.lineTo(10, 10); cctx.stroke(); // illustrative
+            cctx.beginPath(); cctx.moveTo(-10, 0); cctx.lineTo(0, -10); cctx.lineTo(10, 0); cctx.stroke();
+            cctx.restore();
+        }
+
+        // Functional sector hit areas initialization (based on angles as described in FWD L sector calculation)
+        function initTouchSectors() {
+            // Function to generate path points for a circular sector
+            function generateSectorPath(cx, cy, r_inner, r_outer, start_angle, end_angle, steps = 10) {
+                let path = [];
+                // outer arc
+                for (let i = 0; i <= steps; i++) {
+                    let a = start_angle + (end_angle - start_angle) * (i / steps);
+                    path.push({ x: cx + Math.cos(a) * r_outer, y: cy + Math.sin(a) * r_outer });
+                }
+                // inner arc
+                for (let i = steps; i >= 0; i--) {
+                    let a = start_angle + (end_angle - start_angle) * (i / steps);
+                    path.push({ x: cx + Math.cos(a) * r_inner, y: cy + Math.sin(a) * r_inner });
+                }
+                return path;
+            }
+
+            let R = touchController.r;
+            let width = Math.PI / 3; // 60 degrees
+
+            // Functional hit area paths for 6 sectors
+            // Top sectors (Forward)
+            touchController.sectors.push({ id: 0, path: generateSectorPath(touchController.cx, touchController.cy, 0, R, -Math.PI, -2*Math.PI/3) }); // FWD_L
+            touchController.sectors.push({ id: 1, path: generateSectorPath(touchController.cx, touchController.cy, 0, R, -2*Math.PI/3, -Math.PI/3) }); // FWD_S. -2PI/3 to -PI/3 contains -PI/2 (up)
+            touchController.sectors.push({ id: 2, path: generateSectorPath(touchController.cx, touchController.cy, 0, R, -Math.PI/3, 0) }); // FWD_R
+            
+            // Bottom sectors (Backward)
+            // atan2 outputs -PI to PI. Up is -PI/2, down is PI/2. Let's map angles carefully.
+            // Bwd straight PI/2 center. Sector [PI/2 - PI/6, PI/2 + PI/6] = [PI/3, 2PI/3].
+            touchController.sectors.push({ id: 3, path: generateSectorPath(touchController.cx, touchController.cy, 0, R, 2*Math.PI/3, Math.PI) }); // BWD_L (towards Left/PI)
+            touchController.sectors.push({ id: 4, path: generateSectorPath(touchController.cx, touchController.cy, 0, R, Math.PI/3, 2*Math.PI/3) }); // BWD_S. PI/3 to 2PI/3 contains PI/2 (down)
+            touchController.sectors.push({ id: 5, path: generateSectorPath(touchController.cx, touchController.cy, 0, R, 0, Math.PI/3) }); // BWD_R (towards Right/0)
+        }
+        initTouchSectors();
+        drawTouchController(); // Initial draw
+
+        // Touch input handling on the specific controller canvas
+        const tcCanvas = document.getElementById('touchControllerContainer');
+        tcCanvas.addEventListener('touchstart', handleTouchStartMove, { passive: false });
+        tcCanvas.addEventListener('touchmove', handleTouchStartMove, { passive: false });
+        tcCanvas.addEventListener('touchend', e => {
+            e.preventDefault();
+            touchController.touching = false;
+            touchController.activeSector = null;
+            resetActions();
+            drawTouchController();
+        }, { passive: false });
+
+        function resetActions() {
+            for (let a in touchController.actions) touchController.actions[a] = false;
+        }
+
+        function handleTouchStartMove(e) {
+            e.preventDefault();
+            touchController.touching = true;
+            const touch = e.touches[0];
+            // Get coordinates relative to the controller canvas
+            const rect = controllerCanvas.getBoundingClientRect();
+            let tx = touch.clientX - rect.left;
+            let ty = touch.clientY - rect.top;
+
+            touchController.activeSector = null;
+            resetActions();
+
+            // Perform functional hit-test on sectors
+            for (let s of touchController.sectors) {
+                if (isPointInPath(tx, ty, s.path)) {
+                    touchController.activeSector = s;
+                    // Map sector ID to actions
+                    if (s.id == 0) touchController.actions.FWD_L = true;
+                    else if (s.id == 1) touchController.actions.FWD_S = true;
+                    else if (s.id == 2) touchController.actions.FWD_R = true;
+                    else if (s.id == 3) touchController.actions.BWD_L = true;
+                    else if (s.id == 4) touchController.actions.BWD_S = true;
+                    else if (s.id == 5) touchController.actions.BWD_R = true;
+                    break;
+                }
+            }
+            drawTouchController();
         }
 
 
-        // --- EINGABE-LOGIK ---
-        const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
-        window.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key)) keys[e.key] = true; });
-        window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key)) keys[e.key] = false; });
-
-        // Überarbeitete Touch-Steuerung (Follow Drag Direction)
-        const touchCtrl = {
-            active: false,
-            startX: 0, startY: 0,
-            currentX: 0, currentY: 0,
-            maxRadius: 80 // Empfindlichkeit des Joysticks
-        };
-
-        canvas.addEventListener('touchstart', e => {
-            e.preventDefault();
-            const touch = e.touches[0];
-            touchCtrl.active = true;
-            touchCtrl.startX = touch.clientX;
-            touchCtrl.startY = touch.clientY;
-            touchCtrl.currentX = touch.clientX;
-            touchCtrl.currentY = touch.clientY;
-        }, { passive: false });
-
-        canvas.addEventListener('touchmove', e => {
-            e.preventDefault();
-            if (!touchCtrl.active) return;
-            const touch = e.touches[0];
-            touchCtrl.currentX = touch.clientX;
-            touchCtrl.currentY = touch.clientY;
-        }, { passive: false });
-
-        canvas.addEventListener('touchend', e => {
-            e.preventDefault();
-            touchCtrl.active = false;
-        }, { passive: false });
-
-
-        // --- FAHRZEUG (Street Scooter) ---
+        // --- FAHRZEUG PHYSIK & GRAFIK (Street Scooter) ---
         const car = {
-            x: 0, y: 0,           // Start im Zentrum
-            width: 25, height: 50,
+            x: 0, y: 0,           
+            width: 28, height: 55,
             angle: 0,             
             speed: 0,
-            maxSpeed: 8,
-            acceleration: 0.2,
+            maxSpeed: 7, // Fixed max speed model
+            acceleration: 0.15, // Smooth acceleration
+            deceleration: 0.2, // Coasting/Braking deceleration
+            frictionOffroad: 0.85,
+            frictionAsphalt: 0.94, // Standard friction
             currentFriction: 0.94,
             steeringAngle: 0,     
-            maxSteeringAngle: 0.5 // Etwas trägere Lenkung
+            // Significantly reduced steering max and rate for realism
+            maxSteeringAngle: 0.35, 
+            steeringRate: 0.1 // Smooth interpolation
         };
 
-        // Kollisions-Check für Gebäude
+        // Simplified collision with buildings, fences, trees
         function checkCollision(x, y) {
-            // Auto als vereinfachtes Rechteck (leicht kleiner für Fairplay)
-            let halfW = car.width / 2 * 0.8;
-            let halfH = car.height / 2 * 0.8;
+            let halfW = car.width / 2 * 0.9;
+            let halfH = car.height / 2 * 0.9;
             
-            for (let b of buildings) {
-                // Einfacher AABB Kollisions-Check
+            // Building collisions (AABB bounding box)
+            for (let b of mapData.buildings) {
                 if (x + halfW > b.x && x - halfW < b.x + b.w &&
                     y + halfH > b.y && y - halfH < b.y + b.h) {
                     return true;
                 }
             }
+            
+            // Fence collisions (Line segment checks - simplified)
+            for (let f of mapData.fences) {
+                // Check if car intersects with fence line. Use simplified bounding box around line.
+                let minFX = Math.min(f.x1, f.x2) - 10; let maxFX = Math.max(f.x1, f.x2) + 10;
+                let minFY = Math.min(f.y1, f.y2) - 10; let maxFY = Math.max(f.y1, f.y2) + 10;
+                if (x + halfW > minFX && x - halfW < maxFX && y + halfH > minFY && y - halfH < maxFY) return true;
+            }
+            
+            // Tree collisions (Point-to-Circle distance check)
+            for (let t of mapData.trees) {
+                let dx = x - t.x; let dy = y - t.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < (t.r + Math.max(halfW, halfH)) * 0.7) return true;
+            }
+            
             return false;
         }
 
-        // --- SPIEL-LOGIK ---
+        // --- GAME LOGIC ---
+        // Restore previous keyboard listeners as an alternative input
+        const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+        window.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key)) keys[e.key] = true; });
+        window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+
         function update() {
-            let isAccelerating = keys.ArrowUp;
-            let isReversing = keys.ArrowDown;
-            let steeringInput = 0; 
+            // Determine terrain under car center and apply friction
+            car.currentFriction = TERRAIN.GRASS.friction; // Default
+            
+            function isInside(px, py, obj) { return px >= obj.x && px <= obj.x+obj.w && py >= obj.y && py <= obj.y+obj.h; }
+            
+            for (let r of mapData.roads) if(isInside(car.x, car.y, r)) car.currentFriction = r.type.friction;
+            for (let a of mapData.alleys) if(isInside(car.x, car.y, a)) car.currentFriction = TERRAIN.SIDEWALK.friction;
+            for (let p of mapData.pedestrianZones) if(isInside(car.x, car.y, p)) car.currentFriction = TERRAIN.PEDESTRIAN.friction;
 
-            // Neue Touch-Steuerung auswerten
-            if (touchCtrl.active) {
-                let dx = touchCtrl.currentX - touchCtrl.startX;
-                let dy = touchCtrl.currentY - touchCtrl.startY;
-                let distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (distance > 10) { // Deadzone
-                    // Vektor-Winkel berechnen
-                    // (Math.atan2 gibt den Winkel relativ zur X-Achse zurück)
-                    // Wir müssen ihn an unser GTA-System anpassen (0 Grad = Oben)
-                    let touchAngle = Math.atan2(dy, dx) + Math.PI / 2;
-                    
-                    // Normalisiere den Winkel auf 0 bis 2*PI
-                    while(touchAngle < 0) touchAngle += Math.PI * 2;
-                    while(touchAngle > Math.PI * 2) touchAngle -= Math.PI * 2;
-
-                    // Die Differenz zwischen gewünschter (Touch) und aktueller (Auto) Fahrtrichtung
-                    let angleDiff = touchAngle - car.angle;
-
-                    // Den kürzesten Drehweg berechnen
-                    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-                    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-
-                    // Wir interpretieren die Entfernung des Fingers als Gaspedal (nur vorwärts)
-                    // (Max speed erreicht bei maxRadius)
-                    let inputIntensity = Math.min(distance / touchCtrl.maxRadius, 1);
-                    car.speed += car.acceleration * inputIntensity * 1.5; // Schnellerer Boost für Touch
-
-                    // Lenkeinschlag basierend auf Winkel-Differenz berechnen
-                    // Wenn die Differenz groß ist (z.B. > 90 Grad), lenken wir maximal
-                    const maxLenkDiff = Math.PI / 2; // 90 Grad
-                    steeringInput = angleDiff / maxLenkDiff;
-                    steeringInput = Math.max(-1, Math.min(1, steeringInput));
-
-                }
-            } else {
-                // Tastatur-Eingaben
-                if (keys.ArrowLeft) steeringInput = -1;
-                if (keys.ArrowRight) steeringInput = 1;
-                if (isAccelerating) car.speed += car.acceleration;
-                if (isReversing) car.speed -= car.acceleration;
-            }
-
-            // 1. Reibung bestimmen
-            let currentTerrain = TERRAIN.GRASS;
-            for (let r of roads) {
-                if (car.x >= r.x && car.x <= r.x + r.w && car.y >= r.y && car.y <= r.y + r.h) {
-                    currentTerrain = r.type;
-                    break;
-                }
-            }
-            car.currentFriction = currentTerrain.friction;
-
-            // 2. Reibung und Speed begrenzen
+            // Apply friction (coasting)
             car.speed *= car.currentFriction;
-            car.speed = Math.max(-car.maxSpeed/2, Math.min(car.maxSpeed, car.speed)); // Rückwärts langsamer
-            if(Math.abs(car.speed) < 0.05) car.speed = 0; // Totstellen
 
-            // 3. Lenkung anwenden (Nur wenn wir fahren)
+            // Handle Inputs (Touch takes priority over Keys)
+            let inputs = { accelerate: false, reverse: false, steerLeft: false, steerRight: false };
+            
+            if (touchController.touching && touchController.activeSector) {
+                let ac = touchController.actions;
+                if (ac.FWD_L || ac.FWD_S || ac.FWD_R) inputs.accelerate = true;
+                if (ac.BWD_L || ac.BWD_S || ac.BWD_R) inputs.reverse = true;
+                if (ac.FWD_L || ac.BWD_L) inputs.steerLeft = true;
+                if (ac.FWD_R || ac.BWD_R) inputs.steerRight = true;
+            } else {
+                // Keyboard fallback
+                if (keys.ArrowUp) inputs.accelerate = true;
+                if (keys.ArrowDown) inputs.reverse = true;
+                if (keys.ArrowLeft) inputs.steerLeft = true;
+                if (keys.ArrowRight) inputs.steerRight = true;
+            }
+
+            // --- Real-world physics: Acceleration/Deceleration model ---
+            if (inputs.accelerate) {
+                car.speed += car.acceleration;
+                car.speed = Math.min(car.speed, car.maxSpeed);
+            } else if (inputs.reverse) {
+                car.speed -= car.acceleration;
+                car.speed = Math.max(car.speed, -car.maxSpeed * 0.4); // Slower reverse
+            } else {
+                // Not pressing anything: apply extra coasting/friction to slow down
+                if(Math.abs(car.speed) > 0.1) car.speed *= (1 - car.deceleration * 0.1); 
+                else car.speed = 0; // Totstellen
+            }
+            
+            // --- Smoother Steering based on Speed ---
             if (Math.abs(car.speed) > 0.1) {
-                let targetSteeringAngle = steeringInput * car.maxSteeringAngle;
-                car.steeringAngle += (targetSteeringAngle - car.steeringAngle) * 0.15;
+                let targetSteer = 0;
+                if (inputs.steerLeft) targetSteer = -car.maxSteeringAngle;
+                if (inputs.steerRight) targetSteer = car.maxSteeringAngle;
+                
+                // Interpolate steering towards target
+                car.steeringAngle += (targetSteer - car.steeringAngle) * car.steeringRate;
                 
                 let direction = car.speed > 0 ? 1 : -1;
-                // Rückwärtsfahren kehrt die Lenkrichtung um
-                car.angle += car.steeringAngle * (Math.abs(car.speed) / car.maxSpeed) * direction;
+                // Steering is more effective at lower speeds, less at max speed (realism)
+                let speedSteerModifier = 1 - (Math.abs(car.speed) / car.maxSpeed) * 0.3;
+                car.angle += car.steeringAngle * speedSteerModifier * direction * (Math.abs(car.speed)/car.maxSpeed);
             } else {
-                car.steeringAngle *= 0.8;
+                car.steeringAngle *= 0.8; // Straighten wheels when standing
             }
 
-            // 4. Bewegung simulieren und Kollision prüfen
+            // --- Position Update & Collision Detection ---
+            // Calculate potential new position
             let nextX = car.x + Math.cos(car.angle - Math.PI / 2) * car.speed;
             let nextY = car.y + Math.sin(car.angle - Math.PI / 2) * car.speed;
             
-            // Kollisions-Check (sehr simpel)
+            // Perform simple collision check
             if (!checkCollision(nextX, nextY)) {
                 car.x = nextX;
                 car.y = nextY;
             } else {
-                // Kollision! Stehenbleiben
+                // Collision! Sudden stop
                 car.speed = 0;
             }
 
-            // Auto in Weltgrenzen halten
+            // World bounds clamping
             car.x = Math.max(worldBounds.minX, Math.min(worldBounds.maxX, car.x));
             car.y = Math.max(worldBounds.minY, Math.min(worldBounds.maxY, car.y));
 
-            // UI Speedometer aktualisieren
+            // UI Speedometer update
             document.getElementById('speedo').innerText = Math.round(Math.abs(car.speed) * 4) + ' km/h';
         }
 
-        // --- ZEICHNEN ---
+        // --- RENDERING ---
         function draw() {
-            // Hintergrund (Wiese)
-            ctx.fillStyle = TERRAIN.GRASS.color;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Background / Grass
+            ctx.fillStyle = TERRAIN.GRASS.color; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.save();
-            ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y);
+            ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y); // Viewport logic
 
-            // Alle Straßen zeichnen
-            for (let r of roads) {
-                ctx.fillStyle = r.type.color;
-                ctx.fillRect(r.x, r.y, r.w, r.h);
-                
-                // Straßenmarkierungen auf Asphalt
-                if(r.type === TERRAIN.ASPHALT && r.w > 30 && r.h > 30) {
-                    ctx.fillStyle = '#fff';
-                    if(r.w > r.h) { // Horizontale Straße
-                        for(let x=r.x+20; x<r.x+r.w-20; x+=60) ctx.fillRect(x, r.y + r.h/2 - 1, 30, 2);
-                    } else { // Vertikale Straße
-                        for(let y=r.y+20; y<r.y+r.h-20; y+=60) ctx.fillRect(r.x + r.w/2 - 1, y, 2, 30);
-                    }
+            // --- DRAW MAP DATA ---
+
+            // Draw Pedestrian Zones first (under other roads)
+            for (let p of mapData.pedestrianZones) { ctx.fillStyle = TERRAIN.PEDESTRIAN.color; ctx.fillRect(p.x, p.y, p.w, p.h); }
+            
+            // Draw Alleys (narrower paved ways)
+            for (let a of mapData.alleys) { ctx.fillStyle = TERRAIN.SIDEWALK.color; ctx.fillRect(a.x, a.y, a.w, a.h); }
+
+            // Draw Major Asphalt Roads
+            for (let r of mapData.roads) {
+                ctx.fillStyle = r.type.color; ctx.fillRect(r.x, r.y, r.w, r.h);
+                // Simple dashed road markings
+                ctx.fillStyle = '#fff';
+                if(r.w > r.h && r.h > 40) { // Horizontal large road
+                    for(let x=r.x+20; x<r.x+r.w-20; x+=60) ctx.fillRect(x, r.y + r.h/2 - 2, 30, 4);
+                } else if (r.h > r.w && r.w > 40) { // Vertical large road
+                    for(let y=r.y+20; y<r.y+r.h-20; y+=60) ctx.fillRect(r.x + r.w/2 - 2, y, 4, 30);
                 }
             }
 
-            // Gebäude zeichnen
-            ctx.fillStyle = TERRAIN.BUILDING.color;
-            ctx.strokeStyle = '#333';
-            ctx.lineWidth = 2;
-            for (let b of buildings) {
+            // Draw Buildings ( illustrative style with simple shadow effects and details)
+            ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+            for (let b of mapData.buildings) {
+                // illustrative shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(b.x + 5, b.y + 10, b.w, b.h);
+                
+                // Building color (vary slightly or specific POI colors)
+                ctx.fillStyle = '#777'; 
+                // Color variation for center pedestrian zone
+                if (isPointInsideRect(b.x+b.w/2, b.y+b.h/2, -400, -400, 800, 800)) ctx.fillStyle = '#9c7c6c'; // Terracotta in ped zone
+                
+                // church specific color
+                if (isPointInsideRect(b.x+b.w/2, b.y+b.h/2, -150, -380, 100, 330)) ctx.fillStyle = '#6d7580'; // Stone Church
+                
                 ctx.fillRect(b.x, b.y, b.w, b.h);
                 ctx.strokeRect(b.x, b.y, b.w, b.h);
+                
+                // Add illustrative details (like smaller roof squares, simple outlines for GTA 1 vibe)
+                if(b.w > 100 && b.h > 100){
+                    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+                    ctx.fillRect(b.x+10, b.y+10, b.w-20, b.h-20); // lighter center area
+                }
+            }
+            
+            // Helper for POI checks
+            function isPointInsideRect(px, py, x, y, w, h) { return px >= x && px <= x+w && py >= y && py <= y+h; }
+
+            // Draw Fences (line segments, GTA style illustrative)
+            ctx.strokeStyle = '#8d6e63'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+            for (let f of mapData.fences) {
+                ctx.beginPath(); ctx.moveTo(f.x1, f.y1); ctx.lineTo(f.x2, f.y2); ctx.stroke();
+                // Add illustrative fence details (like vertical posts)
+                ctx.fillStyle = '#6d4c41'; let step = 20;
+                let dx = f.x2 - f.x1; let dy = f.y2 - f.y1;
+                let length = Math.sqrt(dx*dx + dy*dy);
+                for(let l=0; l<length; l+=step){
+                    let t = l/length;
+                    ctx.fillRect(f.x1 + dx*t - 3, f.y1 + dy*t - 3, 6, 6); // simple post top-down
+                }
             }
 
-            // --- AUTO ZEICHNEN ---
+            // Draw Trees (illustrative, like circular canopy blobs)
+            ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+            for (let t of mapData.trees) {
+                // illustrative shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(t.x + 5, t.y + 8, t.r, 0, Math.PI*2); ctx.fill();
+                
+                // Outer, lighter green layer
+                ctx.fillStyle = TERRAIN.GRASS.color; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill();
+                // Inner, darker green detail for GTA vibe
+                ctx.fillStyle = '#2d6d2d'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r*0.6, 0, Math.PI*2); ctx.fill();
+                
+                ctx.stroke(); // circle outline
+            }
+
+            // --- DRAW CAR (Street Scooter) ---
             ctx.save();
             ctx.translate(car.x, car.y);
             ctx.rotate(car.angle);
 
-            // Karosserie
-            ctx.fillStyle = '#ffcc00';
+            // Car body (illustrative, classic GTA illustrative detail)
+            ctx.fillStyle = '#ffcc00'; // Post Yellow
             ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
+            // Black outline
+            ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.strokeRect(-car.width/2, -car.height/2, car.width, car.height);
             
-            // Windschutzscheibe (Blau)
+            // Windshield / Windows (Blue)
             ctx.fillStyle = '#1e90ff';
-            ctx.fillRect(-car.width / 2 + 2, -car.height / 2 + 5, car.width - 4, 10);
+            ctx.fillRect(-car.width / 2 + 3, -car.height / 2 + 5, car.width - 6, 12); // Front
+            ctx.fillRect(-car.width / 2 + 3, car.height / 2 - 20, car.width - 6, 8); // Rear
 
-            // Posthorn
-            ctx.fillStyle = '#d32f2f';
-            ctx.beginPath(); ctx.arc(0, 3, 4, 0, Math.PI * 2); ctx.fill();
+            // Posthorn / DHL Logo detail on top
+            ctx.fillStyle = '#d32f2f'; ctx.beginPath(); ctx.arc(0, 3, 4.5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(0, 3, 2, 0, Math.PI * 2); ctx.fill(); // donut horn
 
-            // Räder
-            ctx.fillStyle = '#111';
-            const wheelW = 5, wheelH = 12;
-            const wheelOffsetX = car.width / 2 + 1, wheelOffsetY = car.height / 2 - 8;
+            // Draw Wheels with visible Steering Angle
+            ctx.fillStyle = '#111'; // Wheel Color
+            const wheelW = 5.5, wheelH = 13;
+            const wheelOffsetX = car.width / 2 + 0.5, wheelOffsetY = car.height / 2 - 8;
 
+            // Hinterräder (starr)
             ctx.fillRect(-wheelOffsetX - wheelW, wheelOffsetY - wheelH / 2, wheelW, wheelH); 
             ctx.fillRect(wheelOffsetX, wheelOffsetY - wheelH / 2, wheelW, wheelH);           
 
+            // Vorderrad Links (Lenkbar)
             ctx.save();
             ctx.translate(-wheelOffsetX - wheelW / 2, -wheelOffsetY); ctx.rotate(car.steeringAngle); ctx.fillRect(-wheelW / 2, -wheelH / 2, wheelW, wheelH); ctx.restore();
+            // Vorderrad Rechts (Lenkbar)
             ctx.save();
             ctx.translate(wheelOffsetX + wheelW / 2, -wheelOffsetY); ctx.rotate(car.steeringAngle); ctx.fillRect(-wheelW / 2, -wheelH / 2, wheelW, wheelH); ctx.restore();
 
-            ctx.restore(); // Auto Ende
-            ctx.restore(); // Kamera Ende
+            ctx.restore(); // Car translate/rotate end
+            ctx.restore(); // Camera translate end
 
-            // --- UI LAYER (Joystick & Map) ---
+            // --- UI Layer Rendering ---
+            // drawTouchController() is handled separately in loop
+            drawMiniMap();
+        }
 
-            // 1. Touch Joystick
-            if (touchCtrl.active) {
-                ctx.beginPath(); ctx.arc(touchCtrl.startX, touchCtrl.startY, touchCtrl.maxRadius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)'; ctx.fill();
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 2; ctx.stroke();
-
-                let dx = touchCtrl.currentX - touchCtrl.startX;
-                let dy = touchCtrl.currentY - touchCtrl.startY;
-                let dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist > touchCtrl.maxRadius) {
-                    dx = (dx / dist) * touchCtrl.maxRadius;
-                    dy = (dy / dist) * touchCtrl.maxRadius;
-                }
-                ctx.beginPath(); ctx.arc(touchCtrl.startX + dx, touchCtrl.startY + dy, 30, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(255, 204, 0, 0.8)'; ctx.fill();
-            }
-
-            // 2. Mini-Map (unten links)
-            const mapSize = 180;
-            const mapX = 15;
-            const mapY = canvas.height - mapSize - 15;
-            const scaleX = mapSize / worldBounds.width;
-            const scaleY = mapSize / worldBounds.height;
-
+        function drawMiniMap() {
+            // Mini-Map (unten links, eingenordet)
+            const mapSize = 180; const mapX = 15; const mapY = canvas.height - mapSize - 15;
+            const scaleX = mapSize / worldBounds.width; const scaleY = mapSize / worldBounds.height;
+            
+            // Map Area Border
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)'; ctx.fillRect(mapX, mapY, mapSize, mapSize);
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.strokeRect(mapX, mapY, mapSize, mapSize);
+            
+            // --- Helper for Map-space coords ---
+            function getMSX(gx) { return mapX + (gx - worldBounds.minX) * scaleX; }
+            function getMSY(gy) { return mapY + (gy - worldBounds.minY) * scaleY; }
 
-            // Straßen auf Minikarte
-            for (let r of roads) {
-                ctx.fillStyle = r.type === TERRAIN.ASPHALT ? '#777' : '#555'; // Gassen dunkler
-                ctx.fillRect(mapX + (r.x - worldBounds.minX) * scaleX, mapY + (r.y - worldBounds.minY) * scaleY, r.w * scaleX, r.h * scaleY);
-            }
+            // Ped zones, Alleys, Roads
+            ctx.fillStyle = '#666'; 
+            for (let p of mapData.pedestrianZones) ctx.fillRect(getMSX(p.x), getMSY(p.y), p.w*scaleX, p.h*scaleY);
+            ctx.fillStyle = '#555'; 
+            for (let a of mapData.alleys) ctx.fillRect(getMSX(a.x), getMSY(a.y), a.w*scaleX, a.h*scaleY);
+            ctx.fillStyle = '#777'; 
+            for (let r of mapData.roads) ctx.fillRect(getMSX(r.x), getMSY(r.y), r.w*scaleX, r.h*scaleY);
 
-            // Gebäude auf Minikarte
-            ctx.fillStyle = '#444';
-            for (let b of buildings) {
-                ctx.fillRect(mapX + (b.x - worldBounds.minX) * scaleX, mapY + (b.y - worldBounds.minY) * scaleY, b.w * scaleX, b.h * scaleY);
-            }
+            // Buildings, Fences, Trees
+            ctx.fillStyle = '#444'; 
+            for (let b of mapData.buildings) ctx.fillRect(getMSX(b.x), getMSY(b.y), b.w*scaleX, b.h*scaleY);
+            
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.5;
+            for (let f of mapData.fences) { ctx.beginPath(); ctx.moveTo(getMSX(f.x1), getMSY(f.y1)); ctx.lineTo(getMSX(f.x2), getMSY(f.y2)); ctx.stroke(); }
+            
+            ctx.fillStyle = TERRAIN.GRASS.color; 
+            for (let t of mapData.trees) { ctx.beginPath(); ctx.arc(getMSX(t.x), getMSY(t.y), t.r*scaleX, 0, Math.PI*2); ctx.fill(); }
 
-            // Viewport & Car
+            // Player Focus (Viewport Box & Player Dot)
             let viewW = canvas.width * scaleX, viewH = canvas.height * scaleY;
-            let viewX = mapX + ((car.x - canvas.width/2) - worldBounds.minX) * scaleX;
-            let viewY = mapY + ((car.y - canvas.height/2) - worldBounds.minY) * scaleY;
+            let viewX = getMSX(car.x - canvas.width/2); let viewY = getMSY(car.y - canvas.height/2);
             ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.strokeRect(viewX, viewY, viewW, viewH);
 
-            let miniCarX = mapX + (car.x - worldBounds.minX) * scaleX;
-            let miniCarY = mapY + (car.y - worldBounds.minY) * scaleY;
+            let miniCarX = getMSX(car.x); let miniCarY = getMSY(car.y);
             ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(miniCarX, miniCarY, 3, 0, Math.PI * 2); ctx.fill();
         }
 
+        // Der Game Loop
         function loop() {
             update();
             draw();
+            // Touch controller is already drawn separately on touch interaction to optimize,
+            // but needs initial and ongoing illustrative updates. drawTouchController(); is in touch handler.
             requestAnimationFrame(loop);
         }
 
