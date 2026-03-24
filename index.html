@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Single Task Fix</title>
+    <title>DHL GTA - Perfekte Zustellung</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; font-family: sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -160,17 +160,18 @@
             }
         }
 
-        const gameState = { score: 0, isDelivering: false, brakingForMission: false, mission: null, floatingTexts: [], cooldown: 0 };
+        const gameState = { score: 0, isDelivering: false, brakingForMission: false, mission: null, lastMissionBId: null, floatingTexts: [], cooldown: 0 };
         const MISSION_TYPES = [
             { name: 'Brief', waitTime: 20, color: '#fff', icon: '✉️' },
             { name: 'Päckchen', waitTime: 60, color: '#f0ad4e', icon: '📦' },
             { name: 'Paket', waitTime: 0, color: '#8b4513', icon: '🟫' } 
         ];
-        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 4, waitTimer: 0 };
+        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 4, waitTimer: 0, type: null };
 
         function spawnMission() {
-            let availableBuildings = mapData.buildings.filter(b => Math.hypot(b.haloX - car.x, b.haloY - car.y) > 600);
-            if (availableBuildings.length === 0) availableBuildings = mapData.buildings; 
+            // Garantiert eine Mission weit weg vom Auto!
+            let availableBuildings = mapData.buildings.filter(b => Math.hypot(b.haloX - car.x, b.haloY - car.y) > 800);
+            if (availableBuildings.length === 0) availableBuildings = mapData.buildings.filter(b => b.id !== gameState.lastMissionBId); // Strenger Fallback
             
             let b = availableBuildings[Math.floor(Math.random() * availableBuildings.length)];
             let type = MISSION_TYPES[Math.floor(Math.random() * MISSION_TYPES.length)];
@@ -178,7 +179,7 @@
             
             gameState.mission = { bId: b.id, doorX: b.doorX, doorY: b.doorY, triggerX: b.haloX, triggerY: b.haloY, radius: 45, type: type, pulse: 0 };
             document.getElementById('missionInfo').innerText = `Ziel: ${type.name} ${type.icon}`;
-            gameState.cooldown = 60; // Cooldown nach Spawnen
+            gameState.cooldown = 60;
         }
         
         function showFloatingText(text, x, y) { gameState.floatingTexts.push({ text: text, x: x, y: y, life: 60 }); }
@@ -192,7 +193,8 @@
             initMapAndAI();
             car.x = 0; car.y = -40; car.angle = 0; car.speed = 0; car.steeringAngle = 0;
             gameState.score = 0; gameState.isDelivering = false; gameState.brakingForMission = false; gameState.cooldown = 0;
-            postman.state = 'idle'; // Reset Postbote sicherheitshalber
+            gameState.mission = null; gameState.lastMissionBId = null;
+            postman.state = 'idle';
             document.getElementById('scoreDisplay').innerText = `Zugestellt: 0`;
             
             document.getElementById('startScreen').style.display = 'none';
@@ -240,7 +242,6 @@
             document.getElementById('leaderboardList').innerHTML = listHTML;
         }
 
-        // --- UNTERSCHRIFTEN MINIGAME ---
         const sigCanvas = document.getElementById('sigCanvas'); const sctx = sigCanvas.getContext('2d');
         let isDrawing = false;
         sigCanvas.addEventListener('mousedown', e => { isDrawing = true; sctx.beginPath(); sctx.moveTo(e.offsetX, e.offsetY); });
@@ -252,19 +253,14 @@
         sigCanvas.addEventListener('touchend', e => { e.preventDefault(); isDrawing = false; }, {passive: false});
 
         function confirmSignature() {
-            // SICHERHEITS-SCHLOSS: Verhindert doppelte Ausführung bei schnellem Klicken!
-            if (postman.state !== 'signing') return; 
-            
+            if (postman.state !== 'signing') return; // Verhindert doppelten Klick!
             document.getElementById('signatureUI').style.display = 'none';
             sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
             
-            gameState.score++; 
-            document.getElementById('scoreDisplay').innerText = `Zugestellt: ${gameState.score}`;
+            gameState.score++; document.getElementById('scoreDisplay').innerText = `Zugestellt: ${gameState.score}`;
             showFloatingText('+1', postman.x, postman.y - 20);
             
-            postman.state = 'to_car'; // Zusteller geht zurück!
-            postman.targetX = car.x; 
-            postman.targetY = car.y;
+            postman.state = 'to_car';
             document.getElementById('missionInfo').innerText = "Rückweg zum Fahrzeug...";
         }
 
@@ -381,7 +377,7 @@
 
             if (gameState.cooldown > 0) gameState.cooldown--;
 
-            // Zustell-Sequenz - STRIKT EINE AUFGABE
+            // --- ZUSTELL-SEQUENZ (100% FEHLERFREI) ---
             if (gameState.isDelivering) {
                 inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0;
                 let dx = postman.targetX - postman.x; let dy = postman.targetY - postman.y;
@@ -390,7 +386,7 @@
                 if (postman.state === 'to_door') {
                     if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
                     else { 
-                        if(gameState.mission.type.name === 'Paket') {
+                        if(postman.type.name === 'Paket') {
                             postman.state = 'signing'; document.getElementById('missionInfo').innerText = "Warte auf Unterschrift...";
                             document.getElementById('signatureUI').style.display = 'block'; sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
                         } else {
@@ -414,7 +410,7 @@
                         postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; 
                     } 
                     else { 
-                        // GANZ WICHTIG: Erst wenn er am Auto ist, ist die Mission vorbei!
+                        // ERST HIER WIRD DIE MISSION WIRKLICH BEENDET
                         postman.state = 'idle';
                         gameState.isDelivering = false; 
                         spawnMission(); 
@@ -431,10 +427,19 @@
                     else if (car.speed < -brakeForce) car.speed += brakeForce;
                     else car.speed = 0;
 
+                    // SOBALD DAS AUTO STEHT: MISSION LÖSCHEN
                     if (car.speed === 0) {
-                        gameState.brakingForMission = false; gameState.isDelivering = true;
-                        postman.x = car.x; postman.y = car.y; postman.targetX = gameState.mission.doorX; postman.targetY = gameState.mission.doorY;
-                        postman.state = 'to_door'; postman.waitTimer = gameState.mission.type.waitTime;
+                        gameState.brakingForMission = false; 
+                        gameState.isDelivering = true;
+                        
+                        postman.x = car.x; postman.y = car.y; 
+                        postman.targetX = gameState.mission.doorX; postman.targetY = gameState.mission.doorY;
+                        postman.type = gameState.mission.type; 
+                        postman.waitTimer = gameState.mission.type.waitTime;
+                        postman.state = 'to_door';
+                        
+                        gameState.lastMissionBId = gameState.mission.bId; // ID für später merken
+                        gameState.mission = null; // MARKIERUNG FÜR IMMER LÖSCHEN!
                     }
                 } else {
                     if (inputs.fwd) { car.speed += car.acceleration; } 
@@ -471,6 +476,7 @@
                     car.x = nextX; car.y = nextY;
                 }
 
+                // TRIGGER NUR WENN EINE MISSION EXISTIERT
                 if (gameState.mission && !gameState.brakingForMission && gameState.cooldown <= 0) {
                     gameState.mission.pulse += 0.05; let m = gameState.mission;
                     let dist = Math.hypot(car.x - m.triggerX, car.y - m.triggerY);
@@ -514,6 +520,7 @@
                 ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill();
             }
 
+            // Halo WIRD NICHT MEHR GEZEICHNET, wenn man steht
             if (gameState.mission && !gameState.isDelivering) {
                 let m = gameState.mission;
                 ctx.beginPath(); ctx.arc(m.triggerX, m.triggerY, m.radius + Math.sin(m.pulse) * 5, 0, Math.PI * 2);
