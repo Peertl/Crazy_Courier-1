@@ -2,14 +2,15 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>DHL Zusteller - GTA Style</title>
     <style>
         body { 
             margin: 0; 
-            overflow: hidden; /* Verhindert Scrollbalken */
+            overflow: hidden; 
             background-color: #333; 
             font-family: sans-serif;
+            touch-action: none; /* Verhindert das Scrollen am Handy beim Spielen */
         }
         canvas { 
             display: block; 
@@ -22,7 +23,7 @@
             background: rgba(0, 0, 0, 0.7);
             padding: 15px;
             border-radius: 8px;
-            pointer-events: none; /* UI blockiert keine Klicks */
+            pointer-events: none; 
         }
     </style>
 </head>
@@ -30,12 +31,8 @@
 
     <div id="ui">
         <h2>DHL Zustell-Simulator</h2>
-        <p><strong>PC-Steuerung:</strong> Pfeiltasten</p>
-        <ul style="margin-top: 5px; padding-left: 20px;">
-            <li>Auf / Ab = Fahren / Bremsen</li>
-            <li>Links / Rechts = Lenken</li>
-        </ul>
-        <p style="font-size: 0.8em; color: #ffcc00;">Achte auf den Einschlag der Vorderräder!</p>
+        <p><strong>PC:</strong> Pfeiltasten</p>
+        <p><strong>Handy:</strong> Bildschirm berühren & ziehen</p>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -44,7 +41,6 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Canvas auf Fenstergröße anpassen
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
@@ -52,147 +48,211 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Tasten-Eingaben erfassen
+        // --- EINGABE-LOGIK ---
         const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
         window.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key)) keys[e.key] = true; });
         window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key)) keys[e.key] = false; });
 
-        // Fahrzeug-Objekt (Der gelbe Street Scooter)
+        // Touch-Steuerung
+        const touchCtrl = {
+            active: false,
+            startX: 0, startY: 0,
+            currentX: 0, currentY: 0,
+            maxRadius: 60 // Maximaler Radius für vollen Lenkeinschlag
+        };
+
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            touchCtrl.active = true;
+            touchCtrl.startX = touch.clientX;
+            touchCtrl.startY = touch.clientY;
+            touchCtrl.currentX = touch.clientX;
+            touchCtrl.currentY = touch.clientY;
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if (!touchCtrl.active) return;
+            const touch = e.touches[0];
+            touchCtrl.currentX = touch.clientX;
+            touchCtrl.currentY = touch.clientY;
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', e => {
+            e.preventDefault();
+            touchCtrl.active = false;
+        }, { passive: false });
+
+        // --- FAHRZEUG ---
         const car = {
-            x: 0, y: 0,           // Startposition in der Welt
+            x: 0, y: 0,           
             width: 30, height: 60,
-            angle: 0,             // Ausrichtung des Fahrzeugs
+            angle: 0,             
             speed: 0,
             maxSpeed: 10,
             acceleration: 0.3,
-            friction: 0.94,       // Standard-Reibung (Asphalt)
-            steeringAngle: 0,     // Aktueller Einschlag der Reifen
-            maxSteeringAngle: 0.6 // Maximaler Lenkeinschlag
+            friction: 0.94,       
+            steeringAngle: 0,     
+            maxSteeringAngle: 0.6 
         };
 
-        // Spiel-Logik aktualisieren
+        // --- SPIEL-LOGIK ---
         function update() {
-            // 1. Beschleunigen / Bremsen
-            if (keys.ArrowUp) car.speed += car.acceleration;
-            if (keys.ArrowDown) car.speed -= car.acceleration;
+            let isAccelerating = keys.ArrowUp;
+            let isReversing = keys.ArrowDown;
+            let steeringInput = 0; // -1 (links) bis 1 (rechts)
 
-            // 2. Reibung anwenden (Fahrzeug rollt aus, wenn keine Taste gedrückt wird)
-            car.speed *= car.friction;
-
-            // 3. Lenkung (nur möglich, wenn das Fahrzeug rollt)
-            if (Math.abs(car.speed) > 0.1) {
-                let steeringSpeed = 0.06;
+            // Touch-Eingaben auswerten
+            if (touchCtrl.active) {
+                let dx = touchCtrl.currentX - touchCtrl.startX;
+                let dy = touchCtrl.currentY - touchCtrl.startY;
                 
-                // Räder einschlagen
-                if (keys.ArrowLeft) car.steeringAngle -= steeringSpeed;
-                if (keys.ArrowRight) car.steeringAngle += steeringSpeed;
-                
-                // Räder stellen sich automatisch gerade, wenn nicht gelenkt wird
-                if (!keys.ArrowLeft && !keys.ArrowRight) {
-                    car.steeringAngle *= 0.8; 
+                // Distanz berechnen und ggf. begrenzen
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance > touchCtrl.maxRadius) {
+                    dx = (dx / distance) * touchCtrl.maxRadius;
+                    dy = (dy / distance) * touchCtrl.maxRadius;
                 }
-                
-                // Lenkeinschlag begrenzen
-                car.steeringAngle = Math.max(-car.maxSteeringAngle, Math.min(car.maxSteeringAngle, car.steeringAngle));
-                
-                // Rotation des gesamten Fahrzeugs berechnen (GTA-Style)
-                // Rückwärtsfahren kehrt die Lenkrichtung um
-                let direction = car.speed > 0 ? 1 : -1;
-                car.angle += car.steeringAngle * (Math.abs(car.speed) / car.maxSpeed) * direction;
+
+                // Gas/Bremse (Toleranzbereich von 10px in der Mitte)
+                if (dy < -10) isAccelerating = true;
+                if (dy > 10) isReversing = true;
+
+                // Lenkintensität berechnen (-1 bis 1)
+                steeringInput = dx / touchCtrl.maxRadius;
+            } else {
+                // Tastatur-Eingaben überschreiben steeringInput
+                if (keys.ArrowLeft) steeringInput = -1;
+                if (keys.ArrowRight) steeringInput = 1;
             }
 
-            // 4. Neue Position anhand von Winkel und Geschwindigkeit berechnen
-            // Math.PI/2 dreht die Berechnung so, dass 0 Grad nach oben zeigt
+            // 1. Beschleunigen / Bremsen
+            if (isAccelerating) car.speed += car.acceleration;
+            if (isReversing) car.speed -= car.acceleration;
+
+            // 2. Reibung (Ausrollen)
+            car.speed *= car.friction;
+
+            // 3. Lenkung
+            if (Math.abs(car.speed) > 0.1) {
+                // Ziel-Lenkeinschlag basierend auf Eingabe
+                let targetSteeringAngle = steeringInput * car.maxSteeringAngle;
+                
+                // Weiches Einlenken (Interpolation)
+                car.steeringAngle += (targetSteeringAngle - car.steeringAngle) * 0.2;
+                
+                let direction = car.speed > 0 ? 1 : -1;
+                car.angle += car.steeringAngle * (Math.abs(car.speed) / car.maxSpeed) * direction;
+            } else {
+                // Reifen gerade stellen, wenn wir stehen
+                car.steeringAngle *= 0.8;
+            }
+
+            // 4. Bewegen
             car.x += Math.cos(car.angle - Math.PI / 2) * car.speed;
             car.y += Math.sin(car.angle - Math.PI / 2) * car.speed;
         }
 
-        // Grafik zeichnen
+        // --- ZEICHNEN ---
         function draw() {
-            // Hintergrund (Grünfläche)
             ctx.fillStyle = '#4caf50';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             ctx.save();
-            
-            // Kamera-Logik: Verschiebt den Zeichenbereich so, dass das Auto immer exakt in der Mitte bleibt
             ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y);
 
-            // --- WELT ZEICHNEN ---
-            // Eine einfache Test-Straße zeichnen, um die Bewegung zu sehen
+            // Straße & Gehweg
             ctx.fillStyle = '#555';
-            ctx.fillRect(-150, -2000, 300, 4000); // Asphalt
+            ctx.fillRect(-150, -2000, 300, 4000); 
             
-            // Mittelstreifen
             ctx.fillStyle = '#fff';
-            for(let i = -2000; i < 2000; i += 80) {
-                ctx.fillRect(-5, i, 10, 40); 
-            }
+            for(let i = -2000; i < 2000; i += 80) ctx.fillRect(-5, i, 10, 40); 
 
-            // Gehweg (Test für später: Hier wird die Reibung (friction) geändert)
             ctx.fillStyle = '#aaa';
-            ctx.fillRect(-200, -2000, 50, 4000); // Gehweg links
-            ctx.fillRect(150, -2000, 50, 4000);  // Gehweg rechts
+            ctx.fillRect(-200, -2000, 50, 4000); 
+            ctx.fillRect(150, -2000, 50, 4000);  
 
-            // --- AUTO ZEICHNEN ---
+            // --- AUTO ---
             ctx.save();
-            // Bewege den Nullpunkt zum Auto und drehe es
             ctx.translate(car.x, car.y);
             ctx.rotate(car.angle);
 
-            // Karosserie (Post-Gelb)
             ctx.fillStyle = '#ffcc00';
             ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
             
-            // Windschutzscheibe
             ctx.fillStyle = '#1e90ff';
             ctx.fillRect(-car.width / 2 + 2, -car.height / 2 + 8, car.width - 4, 12);
 
-            // Posthorn-Platzhalter (roter Punkt auf dem Dach)
             ctx.fillStyle = '#d32f2f';
             ctx.beginPath();
             ctx.arc(0, 5, 5, 0, Math.PI * 2);
             ctx.fill();
 
-            // RÄDER ZEICHNEN
+            // Räder
             ctx.fillStyle = '#111';
-            const wheelW = 6;
-            const wheelH = 14;
-            const wheelOffsetX = car.width / 2 + 2;  // Abstand von der Mitte nach links/rechts
-            const wheelOffsetY = car.height / 2 - 10; // Abstand von der Mitte nach vorne/hinten
+            const wheelW = 6, wheelH = 14;
+            const wheelOffsetX = car.width / 2 + 2, wheelOffsetY = car.height / 2 - 10;
 
-            // Hinterräder (starr)
-            ctx.fillRect(-wheelOffsetX - wheelW, wheelOffsetY - wheelH / 2, wheelW, wheelH); // Hinten Links
-            ctx.fillRect(wheelOffsetX, wheelOffsetY - wheelH / 2, wheelW, wheelH);           // Hinten Rechts
+            ctx.fillRect(-wheelOffsetX - wheelW, wheelOffsetY - wheelH / 2, wheelW, wheelH); 
+            ctx.fillRect(wheelOffsetX, wheelOffsetY - wheelH / 2, wheelW, wheelH);           
 
-            // Vorderrad Links (Lenkbar)
             ctx.save();
-            ctx.translate(-wheelOffsetX - wheelW / 2, -wheelOffsetY); // Zum Radmittelpunkt springen
-            ctx.rotate(car.steeringAngle); // Das Rad um den Lenkwinkel drehen
-            ctx.fillRect(-wheelW / 2, -wheelH / 2, wheelW, wheelH); // Rad zeichnen
+            ctx.translate(-wheelOffsetX - wheelW / 2, -wheelOffsetY); 
+            ctx.rotate(car.steeringAngle); 
+            ctx.fillRect(-wheelW / 2, -wheelH / 2, wheelW, wheelH); 
             ctx.restore();
 
-            // Vorderrad Rechts (Lenkbar)
             ctx.save();
             ctx.translate(wheelOffsetX + wheelW / 2, -wheelOffsetY);
             ctx.rotate(car.steeringAngle);
             ctx.fillRect(-wheelW / 2, -wheelH / 2, wheelW, wheelH);
             ctx.restore();
 
-            // Auto-Transformation beenden
-            ctx.restore(); 
-            // Kamera-Transformation beenden
-            ctx.restore(); 
+            ctx.restore(); // Auto Ende
+            ctx.restore(); // Kamera Ende
+
+            // --- TOUCH JOYSTICK ZEICHNEN (UI Layer) ---
+            if (touchCtrl.active) {
+                ctx.save();
+                // Zurücksetzen auf Bildschirmkoordinaten
+                ctx.setTransform(1, 0, 0, 1, 0, 0); 
+                
+                // Basis-Kreis (halbtransparent)
+                ctx.beginPath();
+                ctx.arc(touchCtrl.startX, touchCtrl.startY, touchCtrl.maxRadius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+                ctx.fill();
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Steuer-Knüppel (DHL Gelb)
+                let dx = touchCtrl.currentX - touchCtrl.startX;
+                let dy = touchCtrl.currentY - touchCtrl.startY;
+                
+                // Optische Begrenzung des Knüppels auf den Radius
+                let dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > touchCtrl.maxRadius) {
+                    dx = (dx / dist) * touchCtrl.maxRadius;
+                    dy = (dy / dist) * touchCtrl.maxRadius;
+                }
+
+                ctx.beginPath();
+                ctx.arc(touchCtrl.startX + dx, touchCtrl.startY + dy, 25, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 204, 0, 0.8)'; 
+                ctx.fill();
+
+                ctx.restore();
+            }
         }
 
-        // Der Game Loop (wird 60x pro Sekunde aufgerufen)
         function loop() {
             update();
             draw();
             requestAnimationFrame(loop);
         }
 
-        // Spiel starten
         loop();
     </script>
 </body>
