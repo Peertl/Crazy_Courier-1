@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Competitors & Realistic Map</title>
+    <title>DHL GTA - European City & AI Traffic</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; font-family: sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -26,9 +26,9 @@
 
     <div id="ui">
         <h3>DHL Zusteller</h3>
-        <div id="scoreDisplay">Erfolgreich: 0</div>
+        <div id="scoreDisplay">Zugestellt: 0</div>
         <div id="speedo">0 km/h</div>
-        <div id="missionInfo">Route wird berechnet...</div>
+        <div id="missionInfo">Schicht beginnt...</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -50,90 +50,86 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // --- WELT & KARTE ---
-        const mapData = { roads: [], buildings: [] };
+        // --- MANUELLE STADTPLANUNG (Für 100% korrekte Spawns) ---
+        const mapData = {
+            roads: [],      // Gerade Straßenstücke
+            curves: [],     // Kurven (Kreuzungen/Ecken)
+            buildings: []   // Häuser mit festen Türen
+        };
 
-        // 1. Die Hauptstraßen (Breit) - Zentrum 0,0 ist eine sichere Kreuzung!
-        mapData.roads.push({ x: -3000, y: -100, w: 6000, h: 200, type: 'main' }); // Waagerecht Mitte
-        mapData.roads.push({ x: -100, y: -3000, w: 200, h: 6000, type: 'main' }); // Senkrecht Mitte
+        const roadW = 160; // Straßenbreite (80px pro Spur)
+        const ringRadius = 1000;
 
-        // 2. Nebenstraßen (Schmaler)
-        for(let i = -2000; i <= 2000; i += 800) {
-            if(i !== 0) { // Die 0 ist schon die Hauptstraße
-                mapData.roads.push({ x: -2500, y: i - 60, w: 5000, h: 120, type: 'minor' }); // Waagerecht
-                mapData.roads.push({ x: i - 60, y: -2500, w: 120, h: 5000, type: 'minor' }); // Senkrecht
-            }
+        // 1. Der große Ring (Gerade Stücke)
+        // Oben (Ost-West)
+        mapData.roads.push({ x: -ringRadius, y: -ringRadius - roadW/2, w: ringRadius*2, h: roadW });
+        // Unten (Ost-West)
+        mapData.roads.push({ x: -ringRadius, y: ringRadius - roadW/2, w: ringRadius*2, h: roadW });
+        // Links (Nord-Süd)
+        mapData.roads.push({ x: -ringRadius - roadW/2, y: -ringRadius, w: roadW, h: ringRadius*2 });
+        // Rechts (Nord-Süd)
+        mapData.roads.push({ x: ringRadius - roadW/2, y: -ringRadius, w: roadW, h: ringRadius*2 });
+
+        // 2. Die Kurven (Ecken des Rings)
+        mapData.curves.push({ cx: -ringRadius, cy: -ringRadius, r: roadW/2, start: Math.PI, end: 1.5*Math.PI }); // Oben Links
+        mapData.curves.push({ cx: ringRadius, cy: -ringRadius, r: roadW/2, start: 1.5*Math.PI, end: 2*Math.PI }); // Oben Rechts
+        mapData.curves.push({ cx: ringRadius, cy: ringRadius, r: roadW/2, start: 0, end: 0.5*Math.PI }); // Unten Rechts
+        mapData.curves.push({ cx: -ringRadius, cy: ringRadius, r: roadW/2, start: 0.5*Math.PI, end: Math.PI }); // Unten Links
+
+        // 3. Häuser am Straßenrand platzieren
+        // Helfer-Funktion für Häuser mit definierter Tür
+        function addHouse(x, y, w, h, doorSide) {
+            let doorX = x, doorY = y, haloX = x, haloY = y;
+            if (doorSide === 'top') { doorX = x + w/2; doorY = y; haloX = doorX; haloY = y - 40; }
+            if (doorSide === 'bottom') { doorX = x + w/2; doorY = y + h; haloX = doorX; haloY = y + h + 40; }
+            if (doorSide === 'left') { doorX = x; doorY = y + h/2; haloX = x - 40; haloY = doorY; }
+            if (doorSide === 'right') { doorX = x + w; doorY = y + h/2; haloX = x + w + 40; haloY = doorY; }
+            
+            mapData.buildings.push({ x, y, w, h, doorX, doorY, haloX, haloY });
         }
 
-        // 3. Gebäude (zwischen den Straßen platzieren)
-        for(let blockY = -1800; blockY < 2000; blockY += 800) {
-            for(let blockX = -1800; blockX < 2000; blockX += 800) {
-                if (Math.abs(blockX) < 200 && Math.abs(blockY) < 200) continue; // Kreuzung freihalten!
-                
-                // Ein Häuserblock besteht aus mehreren aneinandergereihten Häusern
-                for(let i = 0; i < 3; i++) {
-                    mapData.buildings.push({ x: blockX + i*160 + 20, y: blockY + 20, w: 140, h: 200 }); // Oben im Block
-                    mapData.buildings.push({ x: blockX + i*160 + 20, y: blockY + 420, w: 140, h: 200 }); // Unten im Block
-                }
-            }
+        // Häuser an der inneren Ringstraße platzieren (Türen zeigen nach außen zur Straße)
+        for (let i = -700; i <= 700; i += 200) {
+            addHouse(i - 60, -ringRadius + 100, 120, 150, 'top'); // Obere innere Reihe
+            addHouse(i - 60, ringRadius - 250, 120, 150, 'bottom'); // Untere innere Reihe
+            addHouse(-ringRadius + 100, i - 60, 150, 120, 'left'); // Linke innere Reihe
+            addHouse(ringRadius - 250, i - 60, 150, 120, 'right'); // Rechte innere Reihe
         }
 
-        // --- KONKURRENZ-FAHRZEUGE (Widersacher) ---
+        // --- KI-ROUTEN (Waypoints für Rechtsfahrgebot) ---
+        // Die innere Spur fährt im Uhrzeigersinn, die äußere gegen den Uhrzeigersinn.
+        const laneOffset = 40; // Mitte der Spur
+        
+        // Innere Route (Uhrzeigersinn)
+        const routeInner = [
+            { x: -ringRadius, y: -ringRadius + laneOffset }, // Oben Links
+            { x: ringRadius, y: -ringRadius + laneOffset },  // Oben Rechts
+            { x: ringRadius - laneOffset, y: -ringRadius },  // In die Kurve
+            { x: ringRadius - laneOffset, y: ringRadius },   // Unten Rechts
+            { x: ringRadius, y: ringRadius - laneOffset },   // In die Kurve
+            { x: -ringRadius, y: ringRadius - laneOffset },  // Unten Links
+            { x: -ringRadius + laneOffset, y: ringRadius },  // In die Kurve
+            { x: -ringRadius + laneOffset, y: -ringRadius }  // Oben Links (Zurück)
+        ];
+
+        // Konkurrenten
         const competitors = [
-            { x: -1000, y: 0, w: 65, h: 35, speed: 3.5, axis: 'x', dir: 1, color: '#00a8e1', name: 'Amazon', routeLimit: 2000 },
-            { x: 1000, y: 0, w: 60, h: 30, speed: 4, axis: 'x', dir: -1, color: '#00529b', name: 'Hermes', routeLimit: 2000 },
-            { x: 0, y: -1000, w: 35, h: 65, speed: 3.8, axis: 'y', dir: 1, color: '#351c15', name: 'UPS', routeLimit: 2000 },
-            { x: 0, y: 1500, w: 35, h: 65, speed: 4.5, axis: 'y', dir: -1, color: '#dc0032', name: 'DPD', routeLimit: 2000 }
+            { x: 0, y: -ringRadius + laneOffset, speed: 2.2, route: routeInner, wp: 1, color: '#00a8e1', name: 'Amazon', angle: 0 },
+            { x: ringRadius - laneOffset, y: 0, speed: 2.0, route: routeInner, wp: 3, color: '#00529b', name: 'Hermes', angle: Math.PI/2 },
+            { x: 0, y: ringRadius - laneOffset, speed: 2.4, route: routeInner, wp: 5, color: '#351c15', name: 'UPS', angle: Math.PI },
+            { x: -ringRadius + laneOffset, y: 0, speed: 2.1, route: routeInner, wp: 7, color: '#dc0032', name: 'DPD', angle: 1.5*Math.PI }
         ];
 
-        // --- MISSIONS-SYSTEM ---
-        const gameState = { score: 0, isDelivering: false, mission: null, floatingTexts: [] };
-
-        const MISSION_TYPES = [
-            { name: 'Brief', waitTime: 30, color: '#fff', icon: '✉️' },
-            { name: 'Päckchen', waitTime: 90, color: '#f0ad4e', icon: '📦' },
-            { name: 'Paket', waitTime: 180, color: '#8b4513', icon: '🟫' }
-        ];
-
-        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 3, waitTimer: 0 };
-
-        function spawnMission() {
-            let b = mapData.buildings[Math.floor(Math.random() * mapData.buildings.length)];
-            let type = MISSION_TYPES[Math.floor(Math.random() * MISSION_TYPES.length)];
-            
-            // Markierung genau vor das Haus auf den Straßenrand (Bordstein) setzen
-            // Wir prüfen, ob das Haus oberhalb oder unterhalb der Straßenmitte des Blocks liegt
-            let isTopRow = (b.y % 800) < 400; 
-            
-            let doorY = isTopRow ? b.y + b.h : b.y; // Tür ist unten oder oben am Haus
-            let triggerY = isTopRow ? b.y + b.h + 40 : b.y - 40; // Halo liegt 40px auf der Straße
-
-            gameState.mission = {
-                doorX: b.x + b.w / 2,
-                doorY: doorY, 
-                triggerX: b.x + b.w / 2,
-                triggerY: triggerY,
-                radius: 40,
-                type: type,
-                pulse: 0
-            };
-            document.getElementById('missionInfo').innerText = `Ziel: ${type.name} ${type.icon}`;
-        }
-        spawnMission();
-
-        function showFloatingText(text, x, y) {
-            gameState.floatingTexts.push({ text: text, x: x, y: y, life: 60 });
-        }
-
-        // --- SPIELER FAHRZEUG (Street Scooter) ---
+        // --- SPIELER FAHRZEUG ---
         const car = {
-            x: 0, y: 0, // Garantiert sichere Startposition auf der Hauptkreuzung!
+            x: 0, 
+            y: ringRadius - laneOffset, // Startet auf der inneren, unteren Fahrspur (Rechtsfahrgebot)
             width: 30, height: 60,
-            angle: 0,
+            angle: -Math.PI / 2, // Schaut nach oben/rechts
             speed: 0,
             maxSpeed: 8,          
             maxReverseSpeed: 4,   
-            acceleration: 0.2,    
+            acceleration: 0.15,    
             braking: 0.4,         
             friction: 0.96,       
             steeringAngle: 0,
@@ -143,38 +139,54 @@
 
         const inputs = { fwd: false, rev: false, left: false, right: false };
 
-        // --- KOLLISIONSABFRAGE (Häuser UND Widersacher) ---
-        function checkCollision(nextX, nextY) {
-            let hw = car.width / 2;
-            let hh = car.height / 2;
+        // --- MISSIONS-SYSTEM ---
+        const gameState = { score: 0, isDelivering: false, mission: null, floatingTexts: [] };
+        const MISSION_TYPES = [
+            { name: 'Brief', waitTime: 20, color: '#fff', icon: '✉️' },
+            { name: 'Päckchen', waitTime: 80, color: '#f0ad4e', icon: '📦' },
+            { name: 'Paket', waitTime: 160, color: '#8b4513', icon: '🟫' }
+        ];
+        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 3.5, waitTimer: 0 };
+
+        function spawnMission() {
+            let b = mapData.buildings[Math.floor(Math.random() * mapData.buildings.length)];
+            let type = MISSION_TYPES[Math.floor(Math.random() * MISSION_TYPES.length)];
             
-            // 1. Gebäude
+            gameState.mission = {
+                doorX: b.doorX, doorY: b.doorY, 
+                triggerX: b.haloX, triggerY: b.haloY,
+                radius: 40, type: type, pulse: 0
+            };
+            document.getElementById('missionInfo').innerText = `Ziel: ${type.name} ${type.icon}`;
+        }
+        spawnMission();
+
+        function showFloatingText(text, x, y) {
+            gameState.floatingTexts.push({ text: text, x: x, y: y, life: 60 });
+        }
+
+        // --- KOLLISION (Häuser & KI) ---
+        function checkCollision(nextX, nextY) {
+            let hw = car.width / 2; let hh = car.height / 2;
             for(let b of mapData.buildings) {
-                if(nextX + hw > b.x && nextX - hw < b.x + b.w && nextY + hh > b.y && nextY - hh < b.y + b.h) {
-                    return true;
-                }
+                if(nextX + hw > b.x && nextX - hw < b.x + b.w && nextY + hh > b.y && nextY - hh < b.y + b.h) return true;
             }
-            // 2. Konkurrenzfahrzeuge
+            // Simple Kreis-Kollision für Autos reicht hier
             for(let c of competitors) {
-                // Konkurrenten als simple Rechtecke (AABB)
-                if(nextX + hw > c.x - c.w/2 && nextX - hw < c.x + c.w/2 && 
-                   nextY + hh > c.y - c.h/2 && nextY - hh < c.y + c.h/2) {
-                    return true;
-                }
+                let dist = Math.sqrt(Math.pow(nextX - c.x, 2) + Math.pow(nextY - c.y, 2));
+                if(dist < 40) return true;
             }
             return false;
         }
 
-        // --- TOUCH-STEUERUNG (Cleane Kurvenpfeile) ---
+        // --- TOUCH-STEUERUNG (Kurvenpfeile) ---
         function drawTouchController(activeSector) {
             cctx.clearRect(0, 0, ctrlCanvas.width, ctrlCanvas.height);
             let w = ctrlCanvas.width; let h = ctrlCanvas.height; let cx = w/2; let cy = h/2;
 
-            // Trennlinien
             cctx.strokeStyle = 'rgba(255,255,255,0.2)'; cctx.lineWidth = 2;
             cctx.beginPath(); cctx.moveTo(0, cy); cctx.lineTo(w, cy); cctx.stroke();
 
-            // Sektor-Highlight zeichnen
             function fillSector(start, end, isActive) {
                 if(!isActive) return;
                 cctx.beginPath(); cctx.moveTo(cx, cy); cctx.arc(cx, cy, w/2, start, end); cctx.lineTo(cx, cy);
@@ -188,71 +200,45 @@
             fillSector(Math.PI/3, 2*Math.PI/3, activeSector === 4);
             fillSector(2*Math.PI/3, Math.PI, activeSector === 5);
 
-            // Cleane Pfeile zeichnen (Manuelle Pfade)
-            cctx.strokeStyle = '#fff';
-            cctx.lineWidth = 4;
-            cctx.lineCap = 'round';
-            cctx.lineJoin = 'round';
+            cctx.strokeStyle = '#fff'; cctx.lineWidth = 4; cctx.lineCap = 'round'; cctx.lineJoin = 'round';
 
             function drawArrowLine(px, py, rotation, type) {
-                cctx.save();
-                cctx.translate(cx + px, cy + py);
-                cctx.rotate(rotation);
-                cctx.beginPath();
+                cctx.save(); cctx.translate(cx + px, cy + py); cctx.rotate(rotation); cctx.beginPath();
                 if(type === 'straight') {
-                    cctx.moveTo(0, 15); cctx.lineTo(0, -15); // Gerade Linie
-                    cctx.moveTo(-8, -7); cctx.lineTo(0, -15); cctx.lineTo(8, -7); // Spitze
+                    cctx.moveTo(0, 15); cctx.lineTo(0, -15); 
+                    cctx.moveTo(-8, -7); cctx.lineTo(0, -15); cctx.lineTo(8, -7); 
                 } else if (type === 'curveLeft') {
-                    // Gebogener Pfeil (Arc)
                     cctx.arc(10, 10, 15, Math.PI, 1.5*Math.PI);
-                    cctx.moveTo(10, -5); cctx.lineTo(-5, -5); cctx.lineTo(-5, 10); // Spitze
+                    cctx.moveTo(10, -5); cctx.lineTo(-5, -5); cctx.lineTo(-5, 10); 
                 } else if (type === 'curveRight') {
                     cctx.arc(-10, 10, 15, 1.5*Math.PI, 2*Math.PI);
-                    cctx.moveTo(5, 10); cctx.lineTo(5, -5); cctx.lineTo(-10, -5); // Spitze
+                    cctx.moveTo(5, 10); cctx.lineTo(5, -5); cctx.lineTo(-10, -5); 
                 }
-                cctx.stroke();
-                cctx.restore();
+                cctx.stroke(); cctx.restore();
             }
 
-            // Oben (Vorwärts)
-            drawArrowLine(-45, -45, 0, 'curveLeft');    // Oben Links
-            drawArrowLine(0, -60, 0, 'straight');       // Oben Mitte
-            drawArrowLine(45, -45, 0, 'curveRight');    // Oben Rechts
+            drawArrowLine(-45, -45, 0, 'curveLeft');    
+            drawArrowLine(0, -60, 0, 'straight');       
+            drawArrowLine(45, -45, 0, 'curveRight');    
+            drawArrowLine(45, 45, Math.PI, 'curveLeft');    
+            drawArrowLine(0, 60, Math.PI, 'straight');      
+            drawArrowLine(-45, 45, Math.PI, 'curveRight');  
             
-            // Unten (Rückwärts)
-            drawArrowLine(45, 45, Math.PI, 'curveLeft');    // Unten Rechts (Rückwärts Links)
-            drawArrowLine(0, 60, Math.PI, 'straight');      // Unten Mitte
-            drawArrowLine(-45, 45, Math.PI, 'curveRight');  // Unten Links (Rückwärts Rechts)
-            
-            // Äußerer Kreis
             cctx.beginPath(); cctx.arc(cx, cy, w/2 - 2, 0, Math.PI*2); cctx.stroke();
         }
         drawTouchController(-1);
 
         const ctrlContainer = document.getElementById('touchControllerContainer');
-        
         function handleTouch(e) {
             e.preventDefault();
             if (e.touches.length === 0 || gameState.isDelivering) { 
-                inputs.fwd = inputs.rev = inputs.left = inputs.right = false;
-                drawTouchController(-1);
-                return;
+                inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1); return; 
             }
-
-            const touch = e.touches[0];
-            const rect = ctrlContainer.getBoundingClientRect();
-            
-            if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
-                touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-                
-                let dx = touch.clientX - (rect.left + rect.width/2);
-                let dy = touch.clientY - (rect.top + rect.height/2);
-                
-                let angle = Math.atan2(dy, dx); 
-                if (angle < 0) angle += 2 * Math.PI;
-
-                inputs.fwd = inputs.rev = inputs.left = inputs.right = false;
-                let sector = -1;
+            const touch = e.touches[0]; const rect = ctrlContainer.getBoundingClientRect();
+            if (touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                let dx = touch.clientX - (rect.left + rect.width/2); let dy = touch.clientY - (rect.top + rect.height/2);
+                let angle = Math.atan2(dy, dx); if (angle < 0) angle += 2 * Math.PI;
+                inputs.fwd = inputs.rev = inputs.left = inputs.right = false; let sector = -1;
 
                 if (angle >= Math.PI && angle < 4*Math.PI/3) { sector = 0; inputs.fwd = true; inputs.left = true; }
                 else if (angle >= 4*Math.PI/3 && angle < 5*Math.PI/3) { sector = 1; inputs.fwd = true; }
@@ -260,82 +246,74 @@
                 else if (angle >= 0 && angle < Math.PI/3) { sector = 3; inputs.rev = true; inputs.right = true; }
                 else if (angle >= Math.PI/3 && angle < 2*Math.PI/3) { sector = 4; inputs.rev = true; }
                 else if (angle >= 2*Math.PI/3 && angle < Math.PI) { sector = 5; inputs.rev = true; inputs.left = true; }
-
                 drawTouchController(sector);
             }
         }
-
         ctrlContainer.addEventListener('touchstart', handleTouch, {passive: false});
         ctrlContainer.addEventListener('touchmove', handleTouch, {passive: false});
         ctrlContainer.addEventListener('touchend', () => { inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1); });
 
-        // PC Tastatur
         window.addEventListener('keydown', e => {
             if(!gameState.isDelivering) {
-                if(e.key === 'ArrowUp') inputs.fwd = true;
-                if(e.key === 'ArrowDown') inputs.rev = true;
-                if(e.key === 'ArrowLeft') inputs.left = true;
-                if(e.key === 'ArrowRight') inputs.right = true;
+                if(e.key === 'ArrowUp') inputs.fwd = true; if(e.key === 'ArrowDown') inputs.rev = true;
+                if(e.key === 'ArrowLeft') inputs.left = true; if(e.key === 'ArrowRight') inputs.right = true;
             }
         });
         window.addEventListener('keyup', e => {
-            if(e.key === 'ArrowUp') inputs.fwd = false;
-            if(e.key === 'ArrowDown') inputs.rev = false;
-            if(e.key === 'ArrowLeft') inputs.left = false;
-            if(e.key === 'ArrowRight') inputs.right = false;
+            if(e.key === 'ArrowUp') inputs.fwd = false; if(e.key === 'ArrowDown') inputs.rev = false;
+            if(e.key === 'ArrowLeft') inputs.left = false; if(e.key === 'ArrowRight') inputs.right = false;
         });
 
-        // --- SPIEL-LOGIK UPDATE ---
+        // --- SPIEL-LOGIK ---
         function update() {
-            // 1. Widersacher bewegen
+            // 1. KI (Konkurrenten) bewegen via Waypoints
             for(let c of competitors) {
-                if(c.axis === 'x') {
-                    c.x += c.speed * c.dir;
-                    if(Math.abs(c.x) > c.routeLimit) c.dir *= -1; // Umdrehen am Ende
-                } else {
-                    c.y += c.speed * c.dir;
-                    if(Math.abs(c.y) > c.routeLimit) c.dir *= -1;
+                let target = c.route[c.wp];
+                let dx = target.x - c.x;
+                let dy = target.y - c.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                
+                if (dist < 10) {
+                    // Nächster Wegpunkt
+                    c.wp = (c.wp + 1) % c.route.length;
                 }
+                
+                // Winkel zum Ziel berechnen (weiches Drehen)
+                let targetAngle = Math.atan2(dy, dx);
+                // Sanfte Rotation für die KI
+                let angleDiff = targetAngle - c.angle;
+                while (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+                while (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+                c.angle += angleDiff * 0.1;
+
+                c.x += Math.cos(c.angle) * c.speed;
+                c.y += Math.sin(c.angle) * c.speed;
             }
 
             // 2. Zustell-Sequenz
             if (gameState.isDelivering) {
-                inputs.fwd = inputs.rev = inputs.left = inputs.right = false; 
-                car.speed = 0;
-                
-                let dx = postman.targetX - postman.x;
-                let dy = postman.targetY - postman.y;
+                inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0;
+                let dx = postman.targetX - postman.x; let dy = postman.targetY - postman.y;
                 let dist = Math.sqrt(dx*dx + dy*dy);
 
                 if (postman.state === 'to_door') {
-                    if (dist > postman.speed) {
-                        postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed;
-                    } else {
-                        postman.state = 'waiting';
-                        document.getElementById('missionInfo').innerText = "An der Tür...";
-                    }
-                } 
-                else if (postman.state === 'waiting') {
+                    if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
+                    else { postman.state = 'waiting'; document.getElementById('missionInfo').innerText = "An der Tür..."; }
+                } else if (postman.state === 'waiting') {
                     postman.waitTimer--;
                     if (postman.waitTimer <= 0) {
-                        gameState.score++;
-                        document.getElementById('scoreDisplay').innerText = `Erfolgreich: ${gameState.score}`;
+                        gameState.score++; document.getElementById('scoreDisplay').innerText = `Zugestellt: ${gameState.score}`;
                         showFloatingText('+1', postman.x, postman.y - 20);
                         postman.state = 'to_car'; postman.targetX = car.x; postman.targetY = car.y;
                         document.getElementById('missionInfo').innerText = "Rückweg...";
                     }
-                }
-                else if (postman.state === 'to_car') {
+                } else if (postman.state === 'to_car') {
                     postman.targetX = car.x; postman.targetY = car.y;
-                    if (dist > postman.speed) {
-                        postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed;
-                    } else {
-                        gameState.isDelivering = false;
-                        spawnMission();
-                    }
+                    if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
+                    else { gameState.isDelivering = false; spawnMission(); }
                 }
             } else {
-                // 3. Normales Fahren
+                // 3. Auto Fahren
                 if (inputs.fwd) { car.speed < 0 ? car.speed += car.braking : car.speed += car.acceleration; } 
                 else if (inputs.rev) { car.speed > 0 ? car.speed -= car.braking : car.speed -= car.acceleration; } 
                 else { car.speed *= car.friction; }
@@ -353,14 +331,13 @@
                     car.angle += car.steeringAngle * dir * (Math.abs(car.speed) / car.maxSpeed);
                 }
 
-                let nextX = car.x + Math.cos(car.angle - Math.PI / 2) * car.speed;
-                let nextY = car.y + Math.sin(car.angle - Math.PI / 2) * car.speed;
+                let nextX = car.x + Math.cos(car.angle) * car.speed;
+                let nextY = car.y + Math.sin(car.angle) * car.speed;
 
-                // Kollision
                 if (!checkCollision(nextX, nextY)) { car.x = nextX; car.y = nextY; } 
-                else { car.speed = 0; } // Crash!
+                else { car.speed = 0; } 
 
-                // Trigger prüfen (Mission)
+                // Mission Trigger
                 if (gameState.mission) {
                     gameState.mission.pulse += 0.05;
                     let m = gameState.mission;
@@ -379,8 +356,7 @@
             document.getElementById('speedo').innerText = Math.round(Math.abs(car.speed) * 6) + ' km/h';
 
             for(let i = gameState.floatingTexts.length - 1; i >= 0; i--) {
-                let ft = gameState.floatingTexts[i];
-                ft.y -= 1; ft.life--;
+                let ft = gameState.floatingTexts[i]; ft.y -= 1; ft.life--;
                 if(ft.life <= 0) gameState.floatingTexts.splice(i, 1);
             }
         }
@@ -392,83 +368,81 @@
             ctx.save();
             ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y); 
 
-            // Straßen
-            for (let r of mapData.roads) {
-                ctx.fillStyle = r.type === 'main' ? '#444' : '#555'; // Hauptstraßen dunkler
-                ctx.fillRect(r.x, r.y, r.w, r.h);
-                
-                // Markierungen
-                ctx.fillStyle = '#fff';
-                if(r.type === 'main') {
-                    if(r.w > r.h) { for(let x=r.x+50; x<r.x+r.w; x+=100) ctx.fillRect(x, r.y + r.h/2 - 2, 50, 4); } 
-                    else { for(let y=r.y+50; y<r.y+r.h; y+=100) ctx.fillRect(r.x + r.w/2 - 2, y, 4, 50); }
-                }
+            // Straßen zeichnen
+            ctx.fillStyle = '#555';
+            for (let r of mapData.roads) ctx.fillRect(r.x, r.y, r.w, r.h);
+            
+            // Kurven zeichnen
+            ctx.strokeStyle = '#555'; ctx.lineWidth = roadW; ctx.lineCap = 'square';
+            for (let c of mapData.curves) {
+                ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r, c.start, c.end); ctx.stroke();
             }
 
-            // Gebäude
+            // Fahrbahnmarkierungen (simpel)
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.setLineDash([30, 30]);
+            for (let r of mapData.roads) {
+                ctx.beginPath();
+                if (r.w > r.h) { ctx.moveTo(r.x, r.y + r.h/2); ctx.lineTo(r.x + r.w, r.y + r.h/2); } 
+                else { ctx.moveTo(r.x + r.w/2, r.y); ctx.lineTo(r.x + r.w/2, r.y + r.h); }
+                ctx.stroke();
+            }
+            for (let c of mapData.curves) {
+                ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r, c.start, c.end); ctx.stroke();
+            }
+            ctx.setLineDash([]); // Reset
+
+            // Häuser zeichnen
             for (let b of mapData.buildings) {
                 ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(b.x + 8, b.y + 12, b.w, b.h); // Schatten
-                ctx.fillStyle = '#8d6e63'; ctx.fillRect(b.x, b.y, b.w, b.h); // Haus
+                ctx.fillStyle = '#8d6e63'; ctx.fillRect(b.x, b.y, b.w, b.h);
                 ctx.strokeStyle = '#3e2723'; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h);
-                ctx.fillStyle = '#a1887f'; ctx.fillRect(b.x+10, b.y+10, b.w-20, b.h-20); // Dach
+                ctx.fillStyle = '#a1887f'; ctx.fillRect(b.x+10, b.y+10, b.w-20, b.h-20);
+                // Die Tür markieren
+                ctx.fillStyle = '#3e2723';
+                ctx.fillRect(b.doorX - 10, b.doorY - 10, 20, 20);
             }
 
-            // Missions-Ziel (Markierung auf der Straße)
+            // Halo (Mission)
             if (gameState.mission && !gameState.isDelivering) {
                 let m = gameState.mission;
                 ctx.beginPath(); ctx.arc(m.triggerX, m.triggerY, m.radius + Math.sin(m.pulse) * 5, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 204, 0, 0.3)`; ctx.fill();
-                ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.stroke();
-                
-                // Weg-Linie vom Halo zur Tür zur Orientierung
+                ctx.fillStyle = `rgba(255, 204, 0, 0.3)`; ctx.fill(); ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(m.triggerX, m.triggerY); ctx.lineTo(m.doorX, m.doorY);
-                ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
-
+                ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
                 ctx.fillStyle = '#fff'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
                 ctx.fillText(m.type.icon, m.triggerX, m.triggerY);
             }
 
-            // Konkurrenzfahrzeuge zeichnen
+            // KI Fahrzeuge
             for(let c of competitors) {
-                ctx.save();
-                ctx.translate(c.x, c.y);
-                // Wenn sie auf der Y-Achse fahren, müssen sie gedreht werden
-                if(c.axis === 'y') ctx.rotate(Math.PI / 2);
-
-                ctx.fillStyle = c.color; 
-                ctx.fillRect(-c.w/2, -c.h/2, c.w, c.h); // Karosserie
-                ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-c.w/2, -c.h/2, c.w, c.h);
-                // Windschutzscheibe vorne (abhängig von Fahrtrichtung)
-                ctx.fillStyle = '#add8e6';
-                if(c.dir > 0) ctx.fillRect(c.w/2 - 12, -c.h/2 + 4, 10, c.h - 8);
-                else ctx.fillRect(-c.w/2 + 2, -c.h/2 + 4, 10, c.h - 8);
-                
+                ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.angle);
+                ctx.fillStyle = c.color; ctx.fillRect(-30, -15, 60, 30);
+                ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-30, -15, 60, 30);
+                ctx.fillStyle = '#add8e6'; ctx.fillRect(10, -11, 10, 22); // Frontscheibe
                 ctx.restore();
             }
 
-            // Spieler Auto zeichnen
-            ctx.save();
-            ctx.translate(car.x, car.y);
-            ctx.rotate(car.angle);
+            // Spieler Auto
+            ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
             ctx.fillStyle = '#ffcc00'; ctx.fillRect(-car.width/2, -car.height/2, car.width, car.height);
             ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-car.width/2, -car.height/2, car.width, car.height);
-            ctx.fillStyle = '#1e90ff'; ctx.fillRect(-car.width/2 + 4, -car.height/2 + 8, car.width - 8, 12);
-            ctx.fillStyle = '#d32f2f'; ctx.beginPath(); ctx.arc(0, 3, 4, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#1e90ff'; ctx.fillRect(car.width/2 - 12, -car.height/2 + 4, 8, car.height - 8); // Frontscheibe
+            ctx.fillStyle = '#d32f2f'; ctx.beginPath(); ctx.arc(4, 0, 4, 0, Math.PI*2); ctx.fill(); // Horn
             
+            // Reifen
             ctx.fillStyle = '#111';
-            const wX = car.width/2 + 1, wY = car.height/2 - 10, wW = 6, wH = 14;
-            ctx.fillRect(-wX - wW, wY - wH/2, wW, wH); ctx.fillRect(wX, wY - wH/2, wW, wH);       
-            ctx.save(); ctx.translate(-wX - wW/2, -wY); ctx.rotate(car.steeringAngle * 4); ctx.fillRect(-wW/2, -wH/2, wW, wH); ctx.restore(); 
-            ctx.save(); ctx.translate(wX + wW/2, -wY); ctx.rotate(car.steeringAngle * 4); ctx.fillRect(-wW/2, -wH/2, wW, wH); ctx.restore(); 
+            const wX = car.width/2 - 8, wY = car.height/2 + 1, wW = 14, wH = 6;
+            ctx.fillRect(-wX - wW/2, wY, wW, wH); ctx.fillRect(-wX - wW/2, -wY - wH, wW, wH);       
+            ctx.save(); ctx.translate(wX, wY + wH/2); ctx.rotate(car.steeringAngle * 4); ctx.fillRect(-wW/2, -wH/2, wW, wH); ctx.restore(); 
+            ctx.save(); ctx.translate(wX, -wY - wH/2); ctx.rotate(car.steeringAngle * 4); ctx.fillRect(-wW/2, -wH/2, wW, wH); ctx.restore(); 
             ctx.restore(); 
 
-            // Postbote zeichnen
+            // Postbote
             if (gameState.isDelivering) {
                 ctx.beginPath(); ctx.arc(postman.x, postman.y, 8, 0, Math.PI * 2);
                 ctx.fillStyle = '#ffcc00'; ctx.fill(); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.stroke();
             }
 
-            // +1 Texte
             for(let ft of gameState.floatingTexts) {
                 ctx.fillStyle = `rgba(255, 204, 0, ${ft.life / 60})`;
                 ctx.font = 'bold 26px Arial'; ctx.textAlign = 'center'; ctx.fillText(ft.text, ft.x, ft.y);
@@ -476,7 +450,7 @@
 
             ctx.restore(); 
 
-            // Navigationspfeil am Bildschirmrand
+            // Navigationspfeil
             if (gameState.mission && !gameState.isDelivering) {
                 let screenX = canvas.width/2 + (gameState.mission.triggerX - car.x);
                 let screenY = canvas.height/2 + (gameState.mission.triggerY - car.y);
