@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Signatures & Aggressive AI</title>
+    <title>DHL GTA - Fixes & Smooth Delivery</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #333; font-family: sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -30,7 +30,6 @@
             border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; z-index: 10; display: none;
         }
 
-        /* Unterschriften-Feld */
         #signatureUI {
             display: none; position: absolute; top: 20%; left: 50%; transform: translate(-50%, 0);
             background: #fff; border: 4px solid #ffcc00; padding: 15px; border-radius: 10px; z-index: 50; text-align: center;
@@ -85,24 +84,24 @@
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
-        // --- FAHRZEUG-DATENBANK (l = Länge/Front-to-Back, w = Breite/Side-to-Side) ---
-        // Beschleunigung erhöht, damit terminal velocity erreicht wird (bei friction 0.96)
+        // --- FAHRZEUG-DATENBANK ---
+        // Beschleunigung wurde massiv verringert.
         const VEHICLES = {
-            bike: { l: 35, w: 16, maxSpeed: 4, acceleration: 0.20, braking: 0.4, maxSteer: 0.04, offroadFriction: 0.7, type: 'bike' },
-            scooter: { l: 50, w: 26, maxSpeed: 7, acceleration: 0.35, braking: 0.5, maxSteer: 0.03, offroadFriction: 0.9, type: 'scooter' },
-            transporter: { l: 85, w: 32, maxSpeed: 9.5, acceleration: 0.40, braking: 0.4, maxSteer: 0.02, offroadFriction: 0.92, type: 'transporter' }
+            bike: { l: 35, w: 16, maxSpeed: 4, acceleration: 0.05, braking: 0.4, maxSteer: 0.04, offroadFriction: 0.7, type: 'bike' },
+            scooter: { l: 50, w: 26, maxSpeed: 7.5, acceleration: 0.09, braking: 0.5, maxSteer: 0.03, offroadFriction: 0.9, type: 'scooter' },
+            transporter: { l: 85, w: 32, maxSpeed: 10, acceleration: 0.04, braking: 0.3, maxSteer: 0.02, offroadFriction: 0.92, type: 'transporter' }
         };
 
-        const car = { x: 0, y: 0, l: 50, w: 26, angle: 0, speed: 0, maxSpeed: 7, acceleration: 0.35, braking: 0.5, maxSteer: 0.03, offroadFriction: 0.9, type: 'scooter', steeringAngle: 0, currentFriction: 0.96 };
+        const car = { x: 0, y: 0, l: 50, w: 26, angle: 0, speed: 0, maxSpeed: 7, acceleration: 0.09, braking: 0.5, maxSteer: 0.03, offroadFriction: 0.9, type: 'scooter', steeringAngle: 0, currentFriction: 0.96 };
 
-        // --- RIESIGE STADT-GENERIERUNG ---
-        const mapData = { roads: [], curves: [], buildings: [], parkedCars: [], fences: [], trees: [] };
+        // --- STADT-GENERIERUNG (Ohne parkende Autos) ---
+        const mapData = { roads: [], curves: [], buildings: [], fences: [], trees: [] };
         const roadW = 160; const gridSteps = [-2000, -1000, 0, 1000, 2000]; 
         const competitors = []; const aiColors = ['#00a8e1', '#00529b', '#351c15', '#dc0032']; 
         let projectiles = [];
 
         function initMapAndAI() {
-            mapData.roads = []; mapData.curves = []; mapData.buildings = []; mapData.parkedCars = []; mapData.fences = []; mapData.trees = []; projectiles = [];
+            mapData.roads = []; mapData.curves = []; mapData.buildings = []; mapData.fences = []; mapData.trees = []; projectiles = [];
             competitors.length = 0;
 
             for(let pos of gridSteps) {
@@ -126,8 +125,6 @@
                     mapData.buildings.push({ x: ix, y: blockY + blockH - hSize - 10, w: hSize, h: hSize, doorX: ix+hSize/2, doorY: blockY+blockH-10, haloX: ix+hSize/2, haloY: blockY+blockH + 30 });
                     mapData.trees.push({ x: ix + 60, y: blockY + blockH/2, r: 25 });
                 }
-                if(Math.random() > 0.4) mapData.parkedCars.push({ x: blockX + 100, y: startY - 20, w: 50, h: 25, color: '#'+Math.floor(Math.random()*16777215).toString(16) });
-                if(Math.random() > 0.4) mapData.parkedCars.push({ x: blockX + 200, y: startY + height + 20, w: 50, h: 25, color: '#'+Math.floor(Math.random()*16777215).toString(16) });
             }
 
             for(let i=0; i<gridSteps.length-1; i++) {
@@ -136,7 +133,6 @@
                 }
             }
 
-            // KI Fahrzeuge spawnen
             for(let i=0; i<8; i++) {
                 let onXAxis = i % 2 === 0; let line = gridSteps[Math.floor(Math.random() * gridSteps.length)];
                 let startPos = (Math.random() * 4000) - 2000; let dir = Math.random() > 0.5 ? 1 : -1;
@@ -155,7 +151,7 @@
         const MISSION_TYPES = [
             { name: 'Brief', waitTime: 20, color: '#fff', icon: '✉️' },
             { name: 'Päckchen', waitTime: 60, color: '#f0ad4e', icon: '📦' },
-            { name: 'Paket', waitTime: 0, color: '#8b4513', icon: '🟫' } // Paket = Signature Minigame
+            { name: 'Paket', waitTime: 0, color: '#8b4513', icon: '🟫' } 
         ];
         const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 4, waitTimer: 0 };
 
@@ -204,7 +200,6 @@
         sigCanvas.addEventListener('mouseup', () => isDrawing = false);
         sigCanvas.addEventListener('mouseleave', () => isDrawing = false);
         
-        // Touch-Support für Unterschrift
         sigCanvas.addEventListener('touchstart', e => { e.preventDefault(); let rect = sigCanvas.getBoundingClientRect(); let t = e.touches[0]; isDrawing = true; sctx.beginPath(); sctx.moveTo(t.clientX - rect.left, t.clientY - rect.top); }, {passive: false});
         sigCanvas.addEventListener('touchmove', e => { e.preventDefault(); if(isDrawing) { let rect = sigCanvas.getBoundingClientRect(); let t = e.touches[0]; sctx.lineTo(t.clientX - rect.left, t.clientY - rect.top); sctx.stroke(); }}, {passive: false});
         sigCanvas.addEventListener('touchend', e => { e.preventDefault(); isDrawing = false; }, {passive: false});
@@ -218,7 +213,7 @@
             document.getElementById('missionInfo').innerText = "Rückweg...";
         }
 
-        // --- KOLLISIONSABFRAGE (Soft & Rigid) ---
+        // --- KOLLISIONSABFRAGE ---
         function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
         function rectDist(cx, cy, rx, ry, rw, rh) {
             let testX = clamp(cx, rx, rx + rw); let testY = clamp(cy, ry, ry + rh);
@@ -226,19 +221,11 @@
         }
 
         function checkCollision(nextX, nextY) {
-            let carRadius = car.w/2; // Näherung für Soft-Kollision (Breite ist kritisch)
+            let carRadius = car.w/2; 
             
-            // 1. Gebäude & Zäune = IMMER RIGID (Solid)
             for(let b of mapData.buildings) if(rectDist(nextX, nextY, b.x, b.y, b.w, b.h) < carRadius) return {hit: true, type: 'solid'};
             for(let f of mapData.fences) if(rectDist(nextX, nextY, f.x, f.y, f.w, f.h) < carRadius) return {hit: true, type: 'solid'};
             
-            // 2. Parkende Autos = Soft oder Rigid
-            for(let p of mapData.parkedCars) {
-                let d = rectDist(nextX, nextY, p.x, p.y, p.w, p.h);
-                if(d < carRadius - 2) return {hit: true, type: 'solid'}; // Frontal
-                if(d < carRadius + 4) return {hit: true, type: 'glancing'}; // Gestreift
-            }
-            // 3. KI Fahrzeuge = Löst Angriff aus
             for(let c of competitors) {
                 let d = Math.hypot(nextX - c.x, nextY - c.y);
                 if(d < (car.w/2 + c.w/2 - 2)) return {hit: true, type: 'solid', ai: c};
@@ -316,12 +303,11 @@
                 } else if(c.state === 'stopped') {
                     c.timer--; if(c.timer <= 0) { c.state = 'driving'; c.speed = c.baseSpeed; }
                 } else if(c.state === 'attacking') {
-                    // Bleibt stehen und wirft!
                     c.speed = 0;
                     let distToPlayer = Math.hypot(car.x - c.x, car.y - c.y);
-                    if(distToPlayer > 200) { c.state = 'driving'; c.speed = c.baseSpeed; } // Spieler entkommen -> wieder losfahren
+                    if(distToPlayer > 200) { c.state = 'driving'; c.speed = c.baseSpeed; } 
                     else {
-                        if(frameCount % 30 === 0) { // Wirft jede halbe Sekunde
+                        if(frameCount % 30 === 0) {
                             let angle = Math.atan2(car.y - c.y, car.x - c.x);
                             projectiles.push({ x: c.x, y: c.y, vx: Math.cos(angle)*8, vy: Math.sin(angle)*8, life: 40 });
                         }
@@ -329,25 +315,28 @@
                 }
             }
 
-            // Fliegende Pakete updaten
             for(let i = projectiles.length-1; i>=0; i--) {
                 let p = projectiles[i]; p.x += p.vx; p.y += p.vy; p.life--;
                 if(Math.hypot(car.x - p.x, car.y - p.y) < car.w/2 + 10) {
-                    car.speed *= 0.6; // Getroffen -> Verlangsamt
+                    car.speed *= 0.6; 
                     showFloatingText("💥 Treffer!", car.x, car.y - 30);
                     projectiles.splice(i, 1);
                 } else if(p.life <= 0) projectiles.splice(i, 1);
             }
 
-            // 2. Zustell-Sequenz (Postbote läuft)
+            // 2. Zustell-Sequenz
             if (gameState.isDelivering) {
                 inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0;
-                let dx = postman.targetX - postman.x; let dy = postman.targetY - postman.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
+                
+                // Wir berechnen dx, dy jeden Frame neu, damit er exakt ans Ziel kommt!
+                let dx = postman.targetX - postman.x; 
+                let dy = postman.targetY - postman.y;
+                let dist = Math.hypot(dx, dy);
 
                 if (postman.state === 'to_door') {
-                    if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
-                    else { 
+                    if (dist > postman.speed) { 
+                        postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; 
+                    } else { 
                         if(gameState.mission.type.name === 'Paket') {
                             postman.state = 'signing';
                             document.getElementById('missionInfo').innerText = "Warte auf Unterschrift...";
@@ -366,26 +355,40 @@
                         document.getElementById('missionInfo').innerText = "Rückweg...";
                     }
                 } else if (postman.state === 'to_car') {
+                    // Update das Ziel kontinuierlich auf die Autoposition
                     postman.targetX = car.x; postman.targetY = car.y;
-                    if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
-                    else { gameState.isDelivering = false; spawnMission(); }
+                    dx = postman.targetX - postman.x; dy = postman.targetY - postman.y;
+                    dist = Math.hypot(dx, dy);
+
+                    if (dist > postman.speed) { 
+                        postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; 
+                    } else { 
+                        gameState.isDelivering = false; spawnMission(); 
+                    }
                 }
             } else {
                 
-                // 3. Auto Fahren (oder Bremsen fürs Halo)
+                // 3. Auto Fahren / Sanftes Bremsen
                 car.currentFriction = getTerrainFriction(car.x, car.y);
 
                 if (gameState.brakingForMission) {
                     inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1);
-                    car.speed *= 0.85; // Natural starkes Abbremsen
-                    if (Math.abs(car.speed) < 0.2) {
-                        car.speed = 0; gameState.brakingForMission = false; gameState.isDelivering = true;
-                        postman.x = car.x; postman.y = car.y; postman.targetX = gameState.mission.doorX; postman.targetY = gameState.mission.doorY;
+                    
+                    // Sanfteres Abbremsen (nicht mehr so ruckartig)
+                    let brakeForce = car.braking * 0.4;
+                    if (car.speed > brakeForce) car.speed -= brakeForce;
+                    else if (car.speed < -brakeForce) car.speed += brakeForce;
+                    else car.speed = 0;
+
+                    if (car.speed === 0) {
+                        gameState.brakingForMission = false; gameState.isDelivering = true;
+                        postman.x = car.x; postman.y = car.y; 
+                        postman.targetX = gameState.mission.doorX; postman.targetY = gameState.mission.doorY;
                         postman.state = 'to_door'; postman.waitTimer = gameState.mission.type.waitTime;
                     }
                 } else {
-                    if (inputs.fwd) { car.speed < 0 ? car.speed += car.braking : car.speed += car.acceleration; } 
-                    else if (inputs.rev) { car.speed > 0 ? car.speed -= car.braking : car.speed -= car.acceleration; } 
+                    if (inputs.fwd) { car.speed += car.acceleration; } 
+                    else if (inputs.rev) { car.speed -= car.acceleration; } 
                     else { car.speed *= car.currentFriction; }
                 }
 
@@ -406,21 +409,23 @@
                 if (col.hit) {
                     if(col.type === 'solid') {
                         car.speed = 0;
-                        // Falls wir ein KI-Auto voll treffen -> Angriff!
                         if(col.ai) { col.ai.state = 'attacking'; showFloatingText("Hey!", col.ai.x, col.ai.y - 20); }
                     } else if(col.type === 'glancing') {
-                        car.speed *= 0.5; // Streifschuss -> stark verlangsamt
-                        car.x = nextX; car.y = nextY;
+                        car.speed *= 0.5; car.x = nextX; car.y = nextY;
                     }
                 } else {
                     car.x = nextX; car.y = nextY;
                 }
 
-                // Halo Trigger prüfen
+                // Halo Edge-Trigger
                 if (gameState.mission && !gameState.brakingForMission) {
                     gameState.mission.pulse += 0.05; let m = gameState.mission;
                     let dist = Math.hypot(car.x - m.triggerX, car.y - m.triggerY);
-                    if (dist < m.radius) gameState.brakingForMission = true; // Auto leitet den Stopp ein!
+                    
+                    // Sobald die Fahrzeugkante (Länge/Breite) den Rand des Halos berührt, löst es aus!
+                    if (dist < m.radius + (Math.max(car.l, car.w) / 2)) {
+                        gameState.brakingForMission = true; 
+                    }
                 }
             }
 
@@ -439,12 +444,10 @@
 
             ctx.save(); ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y); 
 
-            // Straßen & Kurven
             ctx.fillStyle = '#555'; for (let r of mapData.roads) ctx.fillRect(r.x, r.y, r.w, r.h);
             ctx.strokeStyle = '#555'; ctx.lineWidth = roadW; ctx.lineCap = 'butt';
             for (let c of mapData.curves) { ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r, c.start, c.end); ctx.stroke(); }
 
-            // Markierungen
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.setLineDash([30, 30]);
             for (let r of mapData.roads) { ctx.beginPath(); if (r.w > r.h) { ctx.moveTo(r.x, r.y + r.h/2); ctx.lineTo(r.x + r.w, r.y + r.h/2); } else { ctx.moveTo(r.x + r.w/2, r.y); ctx.lineTo(r.x + r.w/2, r.y + r.h); } ctx.stroke(); }
             ctx.setLineDash([]);
@@ -459,18 +462,11 @@
                 ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 10, b.doorY - 10, 20, 20);
             }
 
-            for (let p of mapData.parkedCars) {
-                ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, p.w, p.h);
-                ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(p.x, p.y, p.w, p.h);
-                ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(p.x+5, p.y+5, p.w-10, p.h-10);
-            }
-
             for (let t of mapData.trees) {
                 ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(t.x+5, t.y+5, t.r, 0, Math.PI*2); ctx.fill();
                 ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill();
             }
 
-            // Mission Halo
             if (gameState.mission && !gameState.isDelivering) {
                 let m = gameState.mission;
                 ctx.beginPath(); ctx.arc(m.triggerX, m.triggerY, m.radius + Math.sin(m.pulse) * 5, 0, Math.PI * 2);
@@ -480,7 +476,6 @@
                 ctx.fillStyle = '#fff'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(m.type.icon, m.triggerX, m.triggerY);
             }
 
-            // KI Fahrzeuge
             for(let c of competitors) {
                 ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.angle);
                 ctx.fillStyle = c.color; ctx.fillRect(-c.l/2, -c.w/2, c.l, c.w);
@@ -489,21 +484,18 @@
                 if(c.state === 'stopped' || c.state === 'attacking') { ctx.fillStyle = 'red'; ctx.fillRect(-c.l/2, -c.w/2 + 2, 4, 6); ctx.fillRect(-c.l/2, c.w/2 - 8, 4, 6); }
                 ctx.restore();
 
-                // Kleiner Fahrer steht daneben, wenn er wirft
                 if(c.state === 'attacking') {
                     ctx.fillStyle = c.color; ctx.beginPath(); ctx.arc(c.x + 25, c.y - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke();
                 }
             }
 
-            // Fliegende Pakete zeichnen
             for(let p of projectiles) {
-                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(frameCount * 0.2); // Rotiert in der Luft
+                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(frameCount * 0.2); 
                 ctx.fillStyle = '#8b4513'; ctx.fillRect(-6, -6, 12, 12);
                 ctx.strokeStyle = '#111'; ctx.lineWidth = 1; ctx.strokeRect(-6, -6, 12, 12);
                 ctx.restore();
             }
 
-            // Spieler Fahrzeug 
             ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
             
             if(car.type === 'bike') {
@@ -516,7 +508,7 @@
                 ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-car.l/2, -car.w/2, car.l, car.w);
                 let ws = car.type === 'transporter' ? 12 : 8; let offset = car.type === 'transporter' ? 15 : 12;
                 ctx.fillStyle = '#1e90ff'; ctx.fillRect(car.l/2 - offset, -car.w/2 + 3, ws, car.w - 6); 
-                if(car.type === 'transporter') { ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('DHL', 0, 0); } 
+                if(car.type === 'transporter') { ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.save(); ctx.rotate(Math.PI/2); ctx.fillText('DHL', 0, 0); ctx.restore(); } 
                 else { ctx.fillStyle = '#d32f2f'; ctx.beginPath(); ctx.arc(0, 4, 4, 0, Math.PI*2); ctx.fill(); }
                 
                 ctx.fillStyle = '#111'; let wX = car.l/2 - 12, wY = car.w/2, wW = 12, wH = 5;
@@ -536,7 +528,6 @@
             }
             ctx.restore(); 
 
-            // Pfeil
             if (gameState.mission && !gameState.brakingForMission && !gameState.isDelivering) {
                 let sX = canvas.width/2 + (gameState.mission.triggerX - car.x); let sY = canvas.height/2 + (gameState.mission.triggerY - car.y);
                 if (sX < 40 || sX > canvas.width - 40 || sY < 40 || sY > canvas.height - 40) {
