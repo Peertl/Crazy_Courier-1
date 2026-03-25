@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Karma & Dashboard Update</title>
+    <title>DHL GTA - Dashboard & Crash Fix</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -15,7 +15,7 @@
         
         input[type="text"] { padding: 10px; font-size: 16px; width: 250px; border-radius: 5px; border: 2px solid #ffcc00; margin-bottom: 10px; text-align: center; outline: none; box-sizing: border-box; }
 
-        /* DASHBOARD */
+        /* DASHBOARD - INVENTAR FEST EINGEBAUT */
         #ui { position: absolute; top: 15px; left: 50%; transform: translateX(-50%); width: 90%; max-width: 600px; background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px); border: 2px solid #ffcc00; border-top: 4px solid #d40511; border-radius: 12px; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; color: white; z-index: 10; pointer-events: none; box-shadow: 0 6px 20px rgba(0,0,0,0.6); display: none; box-sizing: border-box; }
         .ui-col { display: flex; flex-direction: column; flex: 1; justify-content: center; }
         .ui-center { align-items: center; text-align: center; flex: 2; }
@@ -82,8 +82,13 @@
         <div class="ui-col" style="align-items: flex-start;">
             <span class="ui-lbl">INVENTAR</span>
             <div id="bonusContainer">
-                <div class="bonus-slot" id="slotAblageort" title="Ablageort Bonus"><img id="imgAblageortUi"></div>
-                <div class="bonus-slot" id="slotPackstation" title="Packstation Bonus"><img id="imgPackstationUi"><span class="bonus-badge">x3</span></div>
+                <div class="bonus-slot" id="slotAblageort" title="Ablageort Bonus">
+                    <img id="imgAblageortUi" src="Päckchen-Icon.png">
+                </div>
+                <div class="bonus-slot" id="slotPackstation" title="Packstation Bonus">
+                    <img id="imgPackstationUi" src="Packstation-Icon.png">
+                    <span class="bonus-badge">x3</span>
+                </div>
             </div>
         </div>
         <div class="ui-col ui-center">
@@ -111,7 +116,7 @@
     </div>
 
     <div id="penaltyImgPopup">
-        <img id="notificationImg">
+        <img id="notificationImg" src="Benachrichtigung.png">
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -135,18 +140,12 @@
         const imgFedExDrive = new Image(); imgFedExDrive.src = 'FedEx-Drive.png'; const imgFedExStop = new Image(); imgFedExStop.src = 'FedEx-Stop.png'; const imgUPSDrive = new Image(); imgUPSDrive.src = 'UPS-Drive.png'; const imgUPStop = new Image(); imgUPStop.src = 'UPS-Stop.png'; const imgAmazonDrive = new Image(); imgAmazonDrive.src = 'Amazon-Drive.png'; const imgAmazonStop = new Image(); imgAmazonStop.src = 'Amazon-Stop.png'; const imgDPDDrive = new Image(); imgDPDDrive.src = 'DPD-Drive.png'; const imgDPDDrive1 = new Image(); imgDPDDrive1.src = 'DPD-Drive-1.png'; const imgGLSDrive = new Image(); imgGLSDrive.src = 'GLS-Drive.png'; const imgGLSStop = new Image(); imgGLSStop.src = 'GLS-Stop.png';
         
         const imgPackstation = new Image(); imgPackstation.src = 'Packstation.png';
-        const imgNotification = new Image(); imgNotification.src = 'Benachrichtigung.png';
         const imgLaterneStehend = new Image(); imgLaterneStehend.src = 'Laterne_stehend.png';
         const imgLaterneLiegend = new Image(); imgLaterneLiegend.src = 'Laterne_liegend.png';
         
-        // ICONS FÜR PAKET & PÄCKCHEN GETRENNT!
         const iconPaket = new Image(); iconPaket.src = 'Paket-Icon.png';
         const iconPaeckchen = new Image(); iconPaeckchen.src = 'Päckchen-Icon.png';
         const iconPackstationMarker = new Image(); iconPackstationMarker.src = 'Packstation-Icon.png';
-
-        document.getElementById('notificationImg').src = 'Benachrichtigung.png';
-        document.getElementById('imgAblageortUi').src = 'Päckchen-Icon.png';
-        document.getElementById('imgPackstationUi').src = 'Packstation-Icon.png';
 
         postmanImgs.post.letter.left.src = 'Post-Zusteller-Letter-Left.png'; postmanImgs.post.letter.right.src = 'Post-Zusteller-Letter-Right.png'; postmanImgs.post.parcel.left.src = 'Post-Zusteller-Parcel-Left.png'; postmanImgs.post.parcel.right.src = 'Post-Zusteller-Parcel-Right.png'; postmanImgs.post.solo.left.src = 'Post-Zusteller-Solo-Left.png'; postmanImgs.post.solo.right.src = 'Post-Zusteller-Solo-Right.png'; postmanImgs.dhl.parcel.left.src = 'DHL-Zusteller-Parcel-Left.png'; postmanImgs.dhl.parcel.right.src = 'DHL-Zusteller-Parcel-Right.png'; postmanImgs.dhl.solo.left.src = 'DHL-Zusteller-Solo-Left.png'; postmanImgs.dhl.solo.right.src = 'DHL-Zusteller-Solo-Right.png';
         postmanImgs.attackers.amazon.throwing.src = 'Konkurrent_Amazon_throwing.png'; postmanImgs.attackers.amazon.after_throw.src = 'Konkurrent_Amazon_after_throw.png'; postmanImgs.attackers.dpd.throwing.src = 'Konkurrent_DPD_throwing.png'; postmanImgs.attackers.dpd.after_throw.src = 'Konkurrent_DPD_after_throw.png'; postmanImgs.attackers.fedex.throwing.src = 'Konkurrent_FedEx_throwing.png'; postmanImgs.attackers.fedex.after_throw.src = 'Konkurrent_FedEx_after_throw.png'; postmanImgs.attackers.gls.throwing.src = 'Konkurrent_GLS_throwing.png'; postmanImgs.attackers.gls.after_throw.src = 'Konkurrent_GLS_after_throw.png'; postmanImgs.attackers.ups.throwing.src = 'Konkurrent_UPS_throwing.png'; postmanImgs.attackers.ups.after_throw.src = 'Konkurrent_UPS_after_throw.png';
@@ -191,8 +190,9 @@
             mapData.curves.push({ cx: -2000, cy: -2000, r: rW2, start: Math.PI, end: 1.5*Math.PI }); mapData.curves.push({ cx: 2000, cy: -2000, r: rW2, start: 1.5*Math.PI, end: 2*Math.PI });
             mapData.curves.push({ cx: 2000, cy: 2000, r: rW2, start: 0, end: 0.5*Math.PI }); mapData.curves.push({ cx: -2000, cy: 2000, r: rW2, start: 0.5*Math.PI, end: Math.PI });
             
-            mapData.packstations.push({ id: 'ps1', x: 200, y: 82, w: 90, h: 30, cx: 245, cy: 97, angle: Math.PI, haloX: 245, haloY: 60 });
-            mapData.packstations.push({ id: 'ps2', x: -500, y: -1112, w: 90, h: 30, cx: -455, cy: -1097, angle: 0, haloX: -455, haloY: -1060 });
+            // WICHTIG: drawW und drawH hinzugefügt, um Crash zu vermeiden!
+            mapData.packstations.push({ id: 'ps1', x: 200, y: 82, w: 90, h: 30, cx: 245, cy: 97, angle: Math.PI, drawW: 90, drawH: 30, haloX: 245, haloY: 60 });
+            mapData.packstations.push({ id: 'ps2', x: -500, y: -1112, w: 90, h: 30, cx: -455, cy: -1097, angle: 0, drawW: 90, drawH: 30, haloX: -455, haloY: -1060 });
             mapData.packstations.push({ id: 'ps3', x: 1082, y: 500, w: 30, h: 90, cx: 1097, cy: 545, angle: Math.PI/2, drawW: 90, drawH: 30, haloX: 1060, haloY: 545 });
 
             for(let i=0; i<gridSteps.length-1; i++) {
@@ -246,7 +246,6 @@
 
         const gameState = { score: 0, isDelivering: false, brakingForMission: false, mission: null, lastMissionBId: null, floatingTexts: [], cooldown: 0, penaltyActive: false, packstationBuff: false, ablageortBuff: false };
         
-        // ICONS: Päckchen & Paket nutzen die jeweiligen Bilder
         const MISSION_TYPES = [ 
             { name: 'Brief', waitTime: 0, color: '#fff', icon: '✉️', img: null }, 
             { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '📦', img: iconPaeckchen }, 
@@ -392,8 +391,8 @@
                 if (ev.active && Math.hypot(car.x - ev.x, car.y - ev.y) < 70) {
                     ev.active = false;
                     if (ev.type === 'time') { bgMusic.currentTime = Math.max(0, bgMusic.currentTime - 15); showFloatingText("+15 Sek!", car.x, car.y - 40); } 
-                    else if (ev.type === 'packstation') { gameState.packstationBuff = true; updateBonusUI(); showFloatingText("Packstation!", car.x, car.y - 40); }
-                    else if (ev.type === 'ablageort') { gameState.ablageortBuff = true; updateBonusUI(); showFloatingText("Ablageort!", car.x, car.y - 40); }
+                    else if (ev.type === 'packstation') { gameState.packstationBuff = true; updateBonusUI(); showFloatingText("Packstation Bonus!", car.x, car.y - 40); }
+                    else if (ev.type === 'ablageort') { gameState.ablageortBuff = true; updateBonusUI(); showFloatingText("Ablageort Bonus!", car.x, car.y - 40); }
                 }
             }
 
@@ -621,6 +620,9 @@
                 let l = mapData.streetlights[i];
                 if(l.state === 'knocked') { l.timer--; if(l.timer <= 0) mapData.streetlights.splice(i, 1); }
             }
+
+            // Keine Geschwindigkeitsanzeige mehr!
+            for(let i = gameState.floatingTexts.length - 1; i >= 0; i--) { let ft = gameState.floatingTexts[i]; ft.y -= 1; ft.life--; if(ft.life <= 0) gameState.floatingTexts.splice(i, 1); }
         }
 
         // --- ZEICHNEN ---
@@ -654,7 +656,7 @@
                 if (ev.active) {
                     let pulse = Math.sin(frameCount * 0.1); let baseR = 35 + pulse * 8; 
                     let grad = ctx.createRadialGradient(ev.x, ev.y, 0, ev.x, ev.y, baseR + 35);
-                    grad.addColorStop(0, 'rgba(76, 175, 80, 0.9)'); grad.addColorStop(0.5, 'rgba(76, 175, 80, 0.5)'); grad.addColorStop(1, 'rgba(76, 175, 80, 0)');
+                    grad.addColorStop(0, 'rgba(76, 175, 80, 0.9)'); grad.addColorStop(0.4, 'rgba(76, 175, 80, 0.6)'); grad.addColorStop(0.8, 'rgba(76, 175, 80, 0.2)'); grad.addColorStop(1, 'rgba(76, 175, 80, 0)');
                     ctx.beginPath(); ctx.arc(ev.x, ev.y, baseR + 35, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
                     ctx.beginPath(); ctx.arc(ev.x, ev.y, baseR, 0, Math.PI * 2); ctx.strokeStyle = '#4caf50'; ctx.lineWidth = 3; ctx.stroke();
                 }
