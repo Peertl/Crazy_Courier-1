@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Realistische Stadt & PC-Eingabe</title>
+    <title>DHL GTA - Touch Fix</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -102,12 +102,14 @@
         const ctrlCanvas = document.getElementById('touchControllerCanvas'); const cctx = ctrlCanvas.getContext('2d');
         const bgMusic = document.getElementById('gameMusic');
         let gameActive = false; let frameCount = 0;
-        let deviceType = 'PC'; // Erkennt automatisch, ob Touch oder Keyboard genutzt wird
+        
+        // Automatische Erkennung beim Start, ob Touch verfügbar ist
+        let isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        let deviceType = isTouchDevice ? 'Handy' : 'PC';
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
-        // --- FAHRZEUG-DATENBANK (Geschwindigkeiten exakt halbiert!) ---
         const VEHICLES = {
             bike: { l: 30, w: 14, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.05, braking: 0.15, maxSteer: 0.05, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' },
             scooter: { l: 45, w: 22, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.10, braking: 0.20, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
@@ -116,7 +118,6 @@
 
         const car = { x: 0, y: 0, l: 45, w: 22, angle: 0, speed: 0, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.1, braking: 0.2, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund', steeringAngle: 0, currentFriction: 0.96 };
 
-        // --- SCHÖNERE STADT-GENERIERUNG ---
         const mapData = { roads: [], curves: [], sidewalks: [], buildings: [], fences: [], trees: [], garages: [] };
         const roadW = 160; const gridSteps = [-2000, -1000, 0, 1000, 2000]; 
         const competitors = []; const aiColors = ['#00a8e1', '#00529b', '#351c15', '#dc0032']; 
@@ -142,18 +143,14 @@
                     let startX = gridSteps[i] + rW2; let startY = gridSteps[j] + rW2;
                     let width = gridSteps[i+1] - gridSteps[i] - roadW; let height = gridSteps[j+1] - gridSteps[j] - roadW;
                     
-                    // Gehwege (Grauer Rand um den ganzen Block)
                     mapData.sidewalks.push({ x: startX, y: startY, w: width, h: height });
-                    
                     let pad = 35; let blockX = startX + pad; let blockY = startY + pad; let blockW = width - pad*2; let blockH = height - pad*2;
                     
-                    // Rasenfläche / Innenhof Begrenzung (Zaun)
                     mapData.fences.push({ x: blockX, y: blockY, w: blockW, h: 4 }); mapData.fences.push({ x: blockX, y: blockY+blockH-4, w: blockW, h: 4 });
                     mapData.fences.push({ x: blockX, y: blockY, w: 4, h: blockH }); mapData.fences.push({ x: blockX+blockW-4, y: blockY, w: 4, h: blockH });
 
                     let hSize = 100; let gap = 160;
                     
-                    // Häuser Oben & Unten (Waagerechte Straßen)
                     for(let ix = blockX + 20; ix < blockX + blockW - 120; ix += gap) {
                         let c1 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r1 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: ix, y: blockY + 5, w: hSize, h: hSize, doorX: ix+hSize/2, doorY: blockY+5, haloX: ix+hSize/2, haloY: blockY - 25, color: c1, roofColor: r1, rType: 'h' });
@@ -164,7 +161,6 @@
                         if(Math.random()>0.5) mapData.garages.push({ x: ix+hSize, y: blockY+blockH-65, w: 40, h: 60, dir: 'down' });
                     }
 
-                    // Häuser Links & Rechts (Senkrechte Straßen)
                     for(let iy = blockY + gap; iy < blockY + blockH - gap; iy += gap) {
                         let c3 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r3 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: blockX + 5, y: iy, w: hSize, h: hSize, doorX: blockX+5, doorY: iy+hSize/2, haloX: blockX - 25, haloY: iy+hSize/2, color: c3, roofColor: r3, rType: 'v' });
@@ -173,14 +169,12 @@
                         mapData.buildings.push({ id: Math.random(), x: blockX + blockW - hSize - 5, y: iy, w: hSize, h: hSize, doorX: blockX+blockW-5, doorY: iy+hSize/2, haloX: blockX+blockW + 25, haloY: iy+hSize/2, color: c4, roofColor: r4, rType: 'v' });
                     }
 
-                    // Bäume im Hof
                     for(let t=0; t<5; t++) {
                         mapData.trees.push({ x: blockX + 150 + Math.random()*(blockW-300), y: blockY + 150 + Math.random()*(blockH-300), r: 15 + Math.random()*15 });
                     }
                 }
             }
 
-            // KI Fahrzeuge (Geschwindigkeit ebenfalls halbiert!)
             for(let i=0; i<8; i++) {
                 let onXAxis = i % 2 === 0; let line = gridSteps[Math.floor(Math.random() * gridSteps.length)];
                 let validSpawn = false; let aiX, aiY;
@@ -204,7 +198,6 @@
             { name: 'Päckchen', waitTime: 60, color: '#f0ad4e', icon: '📦' },
             { name: 'Paket', waitTime: 0, color: '#8b4513', icon: '🟫' } 
         ];
-        // Postbote bewegt sich jetzt mit ca. 7 km/h (entspricht ca. 0.35 px pro Frame bei den neuen Speeds)
         const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.35, waitTimer: 0, type: null };
 
         function spawnMission() {
@@ -238,8 +231,10 @@
             document.getElementById('ui').style.display = 'block';
             document.getElementById('restartBtn').style.display = 'block';
             
-            // Controller nur zeigen, wenn Handy (berührt)
-            if(deviceType === 'Handy') document.getElementById('touchControllerContainer').style.display = 'block';
+            // Touch Controller IMMER anzeigen, wenn ein Touch-Gerät erkannt wurde
+            if(isTouchDevice) {
+                document.getElementById('touchControllerContainer').style.display = 'block';
+            }
             
             bgMusic.currentTime = 0;
             bgMusic.play().catch(e => console.log("Audio Play verweigert"));
@@ -279,9 +274,7 @@
             document.getElementById('leaderboardList').innerHTML = listHTML;
         }
 
-        // --- PAKET-AUFGABEN (PC & Handy) ---
-        
-        // PC Text-Eingabe
+        // PC Eingabe
         document.getElementById('recipientName').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') confirmName();
         });
@@ -290,12 +283,11 @@
             if (postman.state !== 'typing') return;
             let val = document.getElementById('recipientName').value.trim();
             if(val.length < 3) { alert("Bitte mindestens 3 Buchstaben eingeben!"); return; }
-            
             document.getElementById('keyboardPackageUI').style.display = 'none';
             successDelivery();
         }
 
-        // Handy Touch-Unterschrift
+        // Touch Unterschrift
         const sigCanvas = document.getElementById('sigCanvas'); const sctx = sigCanvas.getContext('2d');
         let isDrawing = false;
         sigCanvas.addEventListener('touchstart', e => { e.preventDefault(); let rect = sigCanvas.getBoundingClientRect(); let t = e.touches[0]; isDrawing = true; sctx.beginPath(); sctx.moveTo(t.clientX - rect.left, t.clientY - rect.top); }, {passive: false});
@@ -316,7 +308,6 @@
             document.getElementById('missionInfo').innerText = "Rückweg zum Fahrzeug...";
         }
 
-        // --- KOLLISION & STEUERUNG ---
         function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
         function rectDist(cx, cy, rx, ry, rw, rh) { let testX = clamp(cx, rx, rx + rw); let testY = clamp(cy, ry, ry + rh); let dx = cx - testX; let dy = cy - testY; return Math.sqrt(dx*dx + dy*dy); }
 
@@ -333,9 +324,9 @@
 
         function getTerrainFriction(x, y) {
             for(let r of mapData.roads) if(x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return 0.96;
-            for(let g of mapData.garages) if(x > g.x && x < g.x + g.w && y > g.y && y < g.y + g.h) return 0.96; // Auffahrt
-            for(let s of mapData.sidewalks) if(x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h) return 0.85; // Gehweg etwas bremsend
-            return car.offroadFriction; // Wiese
+            for(let g of mapData.garages) if(x > g.x && x < g.x + g.w && y > g.y && y < g.y + g.h) return 0.96; 
+            for(let s of mapData.sidewalks) if(x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h) return 0.85; 
+            return car.offroadFriction; 
         }
 
         const inputs = { fwd: false, rev: false, left: false, right: false };
@@ -366,7 +357,7 @@
         function handleTouch(e) {
             e.preventDefault(); deviceType = 'Handy'; 
             if(gameActive && document.getElementById('touchControllerContainer').style.display === 'none') {
-                document.getElementById('touchControllerContainer').style.display = 'block'; // Zeige Controller wenn Touch erkannt
+                document.getElementById('touchControllerContainer').style.display = 'block';
             }
             if (e.touches.length === 0 || gameState.brakingForMission || gameState.isDelivering || !gameActive) { inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1); return; }
             let rect = ctrlContainer.getBoundingClientRect(); let t = e.touches[0];
@@ -388,7 +379,7 @@
 
         window.addEventListener('keydown', e => { 
             deviceType = 'PC'; 
-            if(gameActive) document.getElementById('touchControllerContainer').style.display = 'none'; // Verstecke Touch UI am PC
+            if(gameActive) document.getElementById('touchControllerContainer').style.display = 'none'; 
             if(!gameState.brakingForMission && !gameState.isDelivering && gameActive) { 
                 if(e.key === 'ArrowUp') inputs.fwd = true; if(e.key === 'ArrowDown') inputs.rev = true; if(e.key === 'ArrowLeft') inputs.left = true; if(e.key === 'ArrowRight') inputs.right = true; 
             }
@@ -419,7 +410,7 @@
                     if(distToPlayer > 150) { c.state = 'driving'; c.speed = c.baseSpeed; } 
                     else if(frameCount % 40 === 0) {
                         let angle = Math.atan2(car.y - c.y, car.x - c.x);
-                        projectiles.push({ x: c.x, y: c.y, z: 10, vx: Math.cos(angle)*2.5, vy: Math.sin(angle)*2.5, vz: 2, life: 40 }); // Langsamere Würfe
+                        projectiles.push({ x: c.x, y: c.y, z: 10, vx: Math.cos(angle)*2.5, vy: Math.sin(angle)*2.5, vz: 2, life: 40 }); 
                     }
                 }
             }
@@ -433,7 +424,6 @@
 
             if (gameState.cooldown > 0) gameState.cooldown--;
 
-            // --- ZUSTELL-SEQUENZ ---
             if (gameState.isDelivering) {
                 inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0;
                 let dx = postman.targetX - postman.x; let dy = postman.targetY - postman.y;
@@ -526,55 +516,48 @@
 
         // --- ZEICHNEN ---
         function draw() {
-            ctx.fillStyle = '#4caf50'; ctx.fillRect(0, 0, canvas.width, canvas.height); // Wiese (Hintergrund)
+            ctx.fillStyle = '#4caf50'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
             if(!gameActive) return;
 
             ctx.save(); ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y); 
 
-            // Gehwege
             ctx.fillStyle = '#9e9e9e'; for(let s of mapData.sidewalks) ctx.fillRect(s.x, s.y, s.w, s.h);
-            // Innenhöfe (Wiese über Gehweg)
             ctx.fillStyle = '#4caf50'; for(let s of mapData.sidewalks) ctx.fillRect(s.x+30, s.y+30, s.w-60, s.h-60);
 
-            // Straßen
             ctx.fillStyle = '#555'; for (let r of mapData.roads) ctx.fillRect(r.x, r.y, r.w, r.h);
             ctx.strokeStyle = '#555'; ctx.lineWidth = roadW; ctx.lineCap = 'butt';
             for (let c of mapData.curves) { ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r, c.start, c.end); ctx.stroke(); }
 
-            // Markierungen
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.setLineDash([30, 30]);
             for (let r of mapData.roads) { ctx.beginPath(); if (r.w > r.h) { ctx.moveTo(r.x, r.y + r.h/2); ctx.lineTo(r.x + r.w, r.y + r.h/2); } else { ctx.moveTo(r.x + r.w/2, r.y); ctx.lineTo(r.x + r.w/2, r.y + r.h); } ctx.stroke(); }
             ctx.setLineDash([]);
 
-            // Zäune & Garagen
             ctx.fillStyle = '#6d4c41'; for (let f of mapData.fences) ctx.fillRect(f.x, f.y, f.w, f.h);
             for (let g of mapData.garages) {
                 ctx.fillStyle = '#757575'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#424242'; ctx.lineWidth=2; ctx.strokeRect(g.x, g.y, g.w, g.h);
                 ctx.fillStyle = '#9e9e9e'; 
-                if(g.dir === 'up') ctx.fillRect(g.x+5, g.y-20, g.w-10, 20); // Einfahrt
+                if(g.dir === 'up') ctx.fillRect(g.x+5, g.y-20, g.w-10, 20); 
                 else ctx.fillRect(g.x+5, g.y+g.h, g.w-10, 20);
             }
 
-            // Schönere Häuser mit Giebeldach
             for (let b of mapData.buildings) {
-                ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(b.x + 8, b.y + 12, b.w, b.h); // Schatten
-                ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h); // Grundmauer
+                ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(b.x + 8, b.y + 12, b.w, b.h); 
+                ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h); 
                 
-                // Giebeldach Zeichnen
                 ctx.fillStyle = b.roofColor;
                 if(b.rType === 'h') {
-                    ctx.fillRect(b.x-5, b.y-5, b.w+10, b.h/2+5); // Obere Dachhälfte
-                    ctx.fillStyle = 'rgba(0,0,0,0.15)'; // Schattierung untere Hälfte
+                    ctx.fillRect(b.x-5, b.y-5, b.w+10, b.h/2+5); 
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)'; 
                     ctx.fillRect(b.x-5, b.y+b.h/2, b.w+10, b.h/2+5);
-                    ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x-5, b.y+b.h/2); ctx.lineTo(b.x+b.w+5, b.y+b.h/2); ctx.stroke(); // First
+                    ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x-5, b.y+b.h/2); ctx.lineTo(b.x+b.w+5, b.y+b.h/2); ctx.stroke(); 
                 } else {
-                    ctx.fillRect(b.x-5, b.y-5, b.w/2+5, b.h+10); // Linke Dachhälfte
+                    ctx.fillRect(b.x-5, b.y-5, b.w/2+5, b.h+10); 
                     ctx.fillStyle = 'rgba(0,0,0,0.15)'; 
                     ctx.fillRect(b.x+b.w/2, b.y-5, b.w/2+5, b.h+10);
-                    ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x+b.w/2, b.y-5); ctx.lineTo(b.x+b.w/2, b.y+b.h+5); ctx.stroke(); // First
+                    ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x+b.w/2, b.y-5); ctx.lineTo(b.x+b.w/2, b.y+b.h+5); ctx.stroke(); 
                 }
                 
-                ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 8, b.doorY - 8, 16, 16); // Tür
+                ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 8, b.doorY - 8, 16, 16); 
             }
 
             for (let t of mapData.trees) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(t.x+5, t.y+5, t.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill(); }
@@ -637,6 +620,7 @@
                 }
             }
         }
+
         function loop() { update(); draw(); requestAnimationFrame(loop); } loop();
     </script>
 </body>
