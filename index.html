@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Finale Balance (Pakete & Lenkung)</title>
+    <title>DHL GTA - Bürgersteig & Blickrichtung gefixt</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -160,10 +160,9 @@
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
-        // --- FAHRZEUG-DATENBANK ---
         const VEHICLES = {
             bike: { l: 80, w: 35, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.1, braking: 0.15, maxSteer: 0.02, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' },
-            scooter: { l: 100, w: 42, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.03, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' }, // Scooter Lenkung sanfter
+            scooter: { l: 100, w: 42, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.03, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
             transporter: { l: 125, w: 48, maxSpeed: 2.75, displaySpeed: 50, acceleration: 0.12, braking: 0.15, maxSteer: 0.025, offroadFriction: 0.92, type: 'transporter', name: 'Paket' }
         };
 
@@ -186,13 +185,8 @@
             while(!validSpawn) {
                 let startPos = (Math.random() * 4000) - 2000; 
                 dir = Math.random() > 0.5 ? 1 : -1;
-                
-                if (onXAxis) {
-                    aiX = startPos; aiY = line + (dir > 0 ? 40 : -40); dirX = dir; dirY = 0;
-                } else {
-                    aiX = line + (dir > 0 ? -40 : 40); aiY = startPos; dirX = 0; dirY = dir;
-                }
-                
+                if (onXAxis) { aiX = startPos; aiY = line + (dir > 0 ? 40 : -40); dirX = dir; dirY = 0; } 
+                else { aiX = line + (dir > 0 ? -40 : 40); aiY = startPos; dirX = 0; dirY = dir; }
                 if (Math.hypot(aiX - car.x, aiY - car.y) > 600) validSpawn = true;
             }
             
@@ -310,10 +304,13 @@
             return {hit: false};
         }
 
+        // --- GEHWEG BREMSE: HARD CAP! ---
         function getTerrainFriction(x, y) {
             for(let r of mapData.roads) if(x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return 0.96;
             for(let g of mapData.garages) if(x > g.x && x < g.x + g.w && y > g.y && y < g.y + g.h) return 0.96; 
-            for(let s of mapData.sidewalks) if(x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h) { return (car.type === 'bike') ? 0.96 : 0.85; }
+            for(let s of mapData.sidewalks) if(x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h) { 
+                return (car.type === 'bike') ? 0.96 : 0.85; // 0.85 dient als Flag für "Sidewalk"
+            }
             return car.offroadFriction; 
         }
 
@@ -344,11 +341,12 @@
             for(let i = 0; i < competitors.length; i++) {
                 let c = competitors[i];
                 let dToPlayer = Math.hypot(c.x - car.x, c.y - car.y);
+                let playerParked = (car.speed < 0.1 || gameState.brakingForMission || gameState.isDelivering);
                 
-                // Aggressions-Check: Wenn du in der Nähe bist -> Angreifen!
-                if(dToPlayer < 200 && Math.random() < 0.02 && c.state === 'driving') { 
-                    c.state = ' Prepare_Attack'; c.timer = 5; c.speed = 0; showFloatingText("Achtung!", c.x, c.y - 20); 
-                }
+                if (playerParked && dToPlayer < (car.l/2 + c.l/2 + 30)) {
+                    let dx = car.x - c.x, dy = car.y - c.y; let angleToPlayer = Math.atan2(dy, dx); let diffAngle = Math.abs(c.angle - angleToPlayer); if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
+                    if (diffAngle < Math.PI/2) { if(c.state !== 'stopped_reckless' && c.state !== ' Prepare_Attack' && c.state !== 'Attack_Sequence' && c.state !== 'traffic_jam') { c.state = 'stopped'; c.timer = 10; c.speed = 0; c.preventAttacking = true; } }
+                } else { c.preventAttacking = false; }
 
                 if(c.state === 'driving') {
                     let nextX = c.x + c.dirX * c.speed;
@@ -367,7 +365,6 @@
                         }
                     }
 
-                    // SCHUTZRADIUS: KI fährt niemals in dein Auto!
                     if (Math.hypot(nextX - car.x, nextY - car.y) < 90) {
                         isBlocked = true;
                         blockedByPlayer = true;
@@ -375,7 +372,6 @@
 
                     if (isBlocked) {
                         if (blockedByPlayer) {
-                            // Wenn der Spieler den Weg blockiert -> sofort ausrasten
                             c.state = ' Prepare_Attack'; c.timer = 5; c.speed = 0; showFloatingText("Achtung!", c.x, c.y - 20); 
                         } else {
                             c.state = 'traffic_jam'; c.timer = 120; c.speed = 0;
@@ -432,7 +428,7 @@
                 if(attacker.state === 'to_attack_pos') {
                     let dx = attacker.targetX - attacker.x; let dy = attacker.targetY - attacker.y; let dist = Math.hypot(dx, dy);
                     if(dist > attacker.speed) { attacker.x += (dx/dist) * attacker.speed; attacker.y += (dy/dist) * attacker.speed; } 
-                    else { attacker.state = 'throwing'; attacker.pose = 'throwing'; attacker.timer = 20; } 
+                    else { attacker.state = 'throwing'; attacker.pose = 'throwing'; attacker.timer = 15; } 
                     attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x); 
                 } else if(attacker.state === 'throwing') {
                     attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x);
@@ -440,15 +436,14 @@
                     if(attacker.timer <= 0) {
                         const c = competitors.find(comp => comp.id === attacker.attackingCompetitorId);
                         if(c) { let angle = Math.atan2(car.y - attacker.y, car.x - attacker.x); projectiles.push({ x: attacker.x, y: attacker.y, z: 10, vx: Math.cos(angle)*4, vy: Math.sin(angle)*4, vz: 2, life: 40 }); }
-                        attacker.state = 'after_throw'; attacker.pose = 'after_throw'; attacker.timer = 50; // Zeitverzögerung für den nächsten Wurf erhöht
+                        attacker.state = 'after_throw'; attacker.pose = 'after_throw'; attacker.timer = 50; 
                     }
                 } else if(attacker.state === 'after_throw') {
                     attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x);
                     attacker.timer--;
                     if(attacker.timer <= 0) {
-                        // DAUERFEUER: Wenn noch nah genug dran -> wieder werfen
                         if (Math.hypot(car.x - attacker.x, car.y - attacker.y) < 250) {
-                            attacker.state = 'throwing'; attacker.pose = 'throwing'; attacker.timer = 20;
+                            attacker.state = 'throwing'; attacker.pose = 'throwing'; attacker.timer = 15;
                         } else {
                             const c = competitors.find(comp => comp.id === attacker.attackingCompetitorId);
                             if(c) { attacker.state = 'back_to_car'; attacker.targetX = c.x; attacker.targetY = c.y; } 
@@ -468,9 +463,8 @@
 
             for(let i = projectiles.length-1; i>=0; i--) { 
                 let p = projectiles[i]; p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vz -= 0.2; p.life--; 
-                // VERGRÖSSERTE HITBOX & VOLLBREMSUNG BEI TREFFER
                 if(Math.hypot(car.x - p.x, car.y - p.y) < car.w/2 + 15 && p.z < 20) { 
-                    car.speed = 0; 
+                    car.speed = 0; // VOLLBREMSUNG
                     showFloatingText("💥 Treffer!", car.x, car.y - 30); projectiles.splice(i, 1); 
                 } else if(p.life <= 0) projectiles.splice(i, 1); 
             }
@@ -479,6 +473,11 @@
 
             if (gameState.isDelivering) {
                 inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0; let dx = postman.targetX - postman.x, dy = postman.targetY - postman.y; let dist = Math.hypot(dx, dy);
+
+                // Blickrichtung merken bei der Zustellung!
+                if (postman.state === 'to_door' || postman.state === 'to_car') {
+                    postman.lastAngle = Math.atan2(dy, dx);
+                }
 
                 if (postman.state === 'to_door') {
                     if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
@@ -497,17 +496,27 @@
                 } else if (postman.state === 'to_car') {
                     postman.targetX = car.x; postman.targetY = car.y; 
                     dx = postman.targetX - postman.x; dy = postman.targetY - postman.y; dist = Math.hypot(dx, dy);
+                    postman.lastAngle = Math.atan2(dy, dx); // Wieder Richtung Auto schauen
                     if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
                     else { postman.state = 'idle'; gameState.isDelivering = false; spawnMission(); }
                 }
             } else {
                 car.currentFriction = getTerrainFriction(car.x, car.y); 
+                
+                // --- BÜRGERSTEIG-BREMSE UPDATE (HARD CAP) ---
+                let effectiveMaxSpeed = car.maxSpeed;
+                if (car.currentFriction === 0.85) { 
+                    effectiveMaxSpeed = car.maxSpeed * 0.35; // Auf 35% drosseln, wenn auf dem Bürgersteig (und nicht Bike)
+                }
+
                 if (gameState.brakingForMission) {
                     inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1); let brakeForce = car.braking * 0.4; if (car.speed > 0.05) { car.speed -= brakeForce; if(car.speed < 0) car.speed = 0; } else if (car.speed < -0.05) { car.speed += brakeForce; if(car.speed > 0) car.speed = 0; } else { car.speed = 0; } if (car.speed === 0) { gameState.brakingForMission = false; gameState.isDelivering = true; postman.x = car.x; postman.y = car.y; postman.targetX = gameState.mission.doorX; postman.targetY = gameState.mission.doorY; postman.type = gameState.mission.type; postman.waitTimer = gameState.mission.type.waitTime; postman.state = 'to_door'; gameState.lastMissionBId = gameState.mission.bId; gameState.mission = null; } 
                 } else {
                     if (inputs.fwd) { car.speed += car.acceleration; } else if (inputs.rev) { car.speed -= car.acceleration; } else { car.speed *= car.currentFriction; } 
                 }
-                car.speed = Math.max(-car.maxSpeed/2, Math.min(car.maxSpeed, car.speed)); 
+                
+                // Hier wird die gedrosselte Geschwindigkeit auf dem Bürgersteig angewendet
+                car.speed = Math.max(-effectiveMaxSpeed/2, Math.min(effectiveMaxSpeed, car.speed)); 
                 if(Math.abs(car.speed) < 0.05) car.speed = 0; 
                 
                 if (Math.abs(car.speed) > 0.05) { 
@@ -520,13 +529,12 @@
                 let col = checkCollision(nextX, nextY); 
                 
                 if (col.hit) { 
-                    // Gegner rammen und zurück in Auto schicken!
+                    // Wand-Abpraller (Anti-Stuck)
                     car.speed *= 0.2; 
                     let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; 
                     if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
-                    
                     if(!canMoveX && !canMoveY) { 
-                        car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 2.5 : -2.5); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 2.5 : -2.5); car.speed = 0;
+                        car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 2 : -2); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 2 : -2); car.speed = 0;
                     } 
                 } else { car.x = nextX; car.y = nextY; }
 
@@ -562,14 +570,10 @@
                 ctx.restore(); 
             }
 
-            // GRÖSSERE PAKETE GEZEICHNET
             for(let p of projectiles) { 
                 ctx.save(); ctx.translate(p.x, p.y - Math.max(0, p.z)); ctx.rotate(frameCount * 0.2); 
-                ctx.fillStyle = '#8b4513'; 
-                ctx.fillRect(-10, -10, 20, 20); // Vergrößert
-                ctx.strokeStyle = '#111'; ctx.lineWidth = 2; 
-                ctx.strokeRect(-10, -10, 20, 20); 
-                // Paketband zur Deko
+                ctx.fillStyle = '#8b4513'; ctx.fillRect(-10, -10, 20, 20); 
+                ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-10, -10, 20, 20); 
                 ctx.fillStyle = '#d2b48c'; ctx.fillRect(-2, -10, 4, 20);
                 ctx.restore(); 
             }
@@ -584,11 +588,31 @@
             } else if(imgToDraw && imgToDraw.complete && imgToDraw.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(imgToDraw, -car.w/2, -car.l/2, car.w, car.l); }
             ctx.restore(); 
 
-            if (gameState.isDelivering) { ctx.save(); ctx.translate(postman.x, postman.y); let walkAngle = 0; if (postman.state === 'to_door' || postman.state === 'to_car') walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x); else walkAngle = postman.lastAngle; ctx.rotate(walkAngle); let delivererType = (car.type === 'transporter') ? 'dhl' : 'post'; let foot = (Math.floor(frameCount / 10) % 2 === 0) ? 'left' : 'right'; if (postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') foot = 'left'; let counter = 'solo'; if (postman.state === 'to_door' || postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') { if (postman.type.name === 'Brief' && delivererType === 'post') counter = 'letter'; else counter = 'parcel'; } if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel'; let activeSprite = null; try { activeSprite = postmanImgs[delivererType][counter][foot]; } catch(e) {} if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(activeSprite, -20, -20, 40, 40); } ctx.restore(); }
+            if (gameState.isDelivering) { 
+                ctx.save(); ctx.translate(postman.x, postman.y); 
+                
+                // Blickrichtung zur Tür (wird in update() berechnet)
+                ctx.rotate(postman.lastAngle); 
+                
+                let delivererType = (car.type === 'transporter') ? 'dhl' : 'post'; 
+                let foot = (Math.floor(frameCount / 10) % 2 === 0) ? 'left' : 'right'; 
+                if (postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') foot = 'left'; 
+                
+                let counter = 'solo'; 
+                if (postman.state === 'to_door' || postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') { 
+                    if (postman.type.name === 'Brief' && delivererType === 'post') counter = 'letter'; else counter = 'parcel'; 
+                } 
+                if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel'; 
+                
+                let activeSprite = null; 
+                try { activeSprite = postmanImgs[delivererType][counter][foot]; } catch(e) {} 
+                if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(activeSprite, -20, -20, 40, 40); } 
+                ctx.restore(); 
+            }
             
             if (attacker.state !== 'idle') {
                 ctx.save(); ctx.translate(attacker.x, attacker.y);
-                let walkAngle = 0; if (attacker.state === 'to_attack_pos' || attacker.state === 'back_to_car') walkAngle = Math.atan2(attacker.targetY - attacker.y, attacker.targetX - attacker.x); else walkAngle = attacker.lastAngle; ctx.rotate(walkAngle);
+                ctx.rotate(attacker.lastAngle);
                 let delivererBrand = attacker.sourceBrand; let attackerPose = attacker.pose; let activeSprite = null;
                 try { activeSprite = postmanImgs.attackers[delivererBrand][attackerPose]; } catch(e) {}
                 if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(activeSprite, -20, -20, 40, 40); }
