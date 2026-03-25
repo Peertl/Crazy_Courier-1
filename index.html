@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Sprite Animationen & KI Halt</title>
+    <title>DHL GTA - Sprite Animationen & UI Fix</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -19,7 +19,7 @@
         }
         .vehicle-btn:hover, .action-btn:hover { background: #e6b800; }
         
-        input[type="text"] { padding: 10px; font-size: 16px; width: 230px; border-radius: 5px; border: 2px solid #ffcc00; margin-bottom: 10px; text-align: center; outline: none; }
+        input[type="text"] { padding: 10px; font-size: 16px; width: 250px; border-radius: 5px; border: 2px solid #ffcc00; margin-bottom: 10px; text-align: center; outline: none; box-sizing: border-box; }
 
         #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0, 0, 0, 0.85); padding: 15px; border-radius: 8px; pointer-events: none; z-index: 10; border-left: 4px solid #ffcc00; display: none; }
         h3 { margin: 0 0 5px 0; color: #ffcc00; font-size: 18px; }
@@ -58,10 +58,10 @@
         <h1 style="color: #ffcc00; margin-bottom: 5px;">Schicht beendet!</h1>
         <h2>Zugestellte Sendungen: <span id="finalScoreDisplay">0</span></h2>
         
-        <div id="nameEntryArea">
+        <div id="playerNameArea" style="display: none; text-align: center;">
             <input type="text" id="playerName" placeholder="Dein Name" maxlength="15">
             <br>
-            <button class="action-btn" style="width: 254px;" onclick="saveScore()">In Bestenliste eintragen</button>
+            <button class="action-btn" id="saveScoreBtn" onclick="saveScore()">In Bestenliste eintragen</button>
         </div>
 
         <ul id="leaderboardList"></ul>
@@ -106,7 +106,7 @@
         let deviceType = isTouchDevice ? 'Handy' : 'PC';
 
         // Lade die Custom PNG Bilder
-        const imgScooter = new Image(); imgScooter.src = 'Street-Scooter.png';
+        const imgScooter = new Image(); imgScooter.src = '48205.png'; // Neuer Scooter
         const imgTransporter = new Image(); imgTransporter.src = 'Transporter.png'; // Neuer Transporter
 
         // Neue Bike Sprites
@@ -119,8 +119,9 @@
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
+        // --- FAHRZEUG-DATENBANK (Lenkung gefixt) ---
         const VEHICLES = {
-            bike: { l: 45, w: 20, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.1, braking: 0.15, maxSteer: 0.05, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' },
+            bike: { l: 45, w: 20, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.1, braking: 0.15, maxSteer: 0.02, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' }, // maxSteer: 0.05 -> 0.02
             scooter: { l: 65, w: 32, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
             transporter: { l: 110, w: 42, maxSpeed: 2.75, displaySpeed: 50, acceleration: 0.12, braking: 0.15, maxSteer: 0.025, offroadFriction: 0.92, type: 'transporter', name: 'Paket' }
         };
@@ -132,8 +133,8 @@
         const competitors = []; const aiColors = ['#00a8e1', '#00529b', '#351c15', '#dc0032']; 
         let projectiles = [];
         
-        const houseColors = ['#8d6e63', '#a1887f', '#bcaaa4', '#795548', '#d7ccc8', '#9e9e9e'];
-        const roofColors = ['#5d4037', '#4e342e', '#3e2723', '#424242'];
+         houseColors = ['#8d6e63', '#a1887f', '#bcaaa4', '#795548', '#d7ccc8', '#9e9e9e'];
+ roofColors = ['#5d4037', '#4e342e', '#3e2723', '#424242'];
 
         function initMapAndAI() {
             mapData.roads = []; mapData.curves = []; mapData.sidewalks = []; mapData.buildings = []; mapData.fences = []; mapData.trees = []; mapData.garages = []; projectiles = [];
@@ -271,15 +272,18 @@
             renderLeaderboard();
         }
 
+        // --- BESTENLISTE FUNKTION (Zeitstempel & Label angepasst) ---
         function saveScore() {
             let nameInput = document.getElementById('playerName');
             let name = nameInput.value.trim() || "Anonymer Bote";
             let lb = JSON.parse(localStorage.getItem('dhl_leaderboard') || "[]");
-            let dateStr = new Date().toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'});
-            lb.push({ name: name, score: gameState.score, vehicle: car.name, device: deviceType, date: dateStr });
+            // Zeitstempel erstellen
+            let entryDate = new Date();
+            let dateStr = entryDate.toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'}) + ', ' + entryDate.toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'});
+            lb.push({ name: name, score: gameState.score, timestamp: dateStr });
             lb.sort((a,b) => b.score - a.score); 
             localStorage.setItem('dhl_leaderboard', JSON.stringify(lb));
-            document.getElementById('nameEntryArea').style.display = 'none';
+            document.getElementById('playerNameArea').style.display = 'none';
             renderLeaderboard();
         }
 
@@ -287,7 +291,8 @@
             let lb = JSON.parse(localStorage.getItem('dhl_leaderboard') || "[]");
             let listHTML = "";
             for(let i=0; i < Math.min(lb.length, 5); i++) {
-                listHTML += `<li><strong>${lb[i].score} Pakete</strong> - ${lb[i].name} <br><span style="font-size:0.8em; color:#ccc;">${lb[i].date} | ${lb[i].vehicle} | ${lb[i].device}</span></li>`;
+                // "Pakete" -> "Sendungen"
+                listHTML += '<li><strong>' + lb[i].score + ' Sendungen</strong> - ' + lb[i].name + ' <br><span style="font-size:0.8em; color:#ccc;">' + lb[i].timestamp + '</span></li>';
             }
             document.getElementById('leaderboardList').innerHTML = listHTML;
         }
@@ -408,37 +413,30 @@
             for(let c of competitors) {
                 // --- KI HALT VOR GEPARKTEM SPIELER ---
                 let dToPlayer = Math.hypot(c.x - car.x, c.y - car.y);
-                let playerRadius = car.l/2;
                 let playerParked = (car.speed < 0.1 || gameState.brakingForMission || gameState.isDelivering);
-
-                // Wenn Spieler geparkt ist und wir nah dran sind
-                if (playerParked && dToPlayer < playerRadius + c.l/2 + 30) {
-                    // Prüfen ob wir auf den Spieler zufahren
+                if (playerParked && dToPlayer < (car.l/2 + c.l/2 + 20)) {
+                    // Prüfen ob KI auf Spieler zufährt
                     let dx = car.x - c.x; let dy = car.y - c.y;
                     let angleToPlayer = Math.atan2(dy, dx);
                     let diffAngle = Math.abs(c.angle - angleToPlayer);
                     if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
 
-                    if (diffAngle < Math.PI/2) { // Wir fahren ungefähr darauf zu
+                    if (diffAngle < Math.PI/2) {
                         c.state = 'stopped';
-                        c.timer = 10; // Kurz stoppen, prüft im nächsten Frame wieder
+                        c.timer = 10;
                         c.speed = 0;
-                        c.preventAttacking = true; // Verhindert Angriffe im geparkten Zustand
+                        c.preventAttacking = true; 
                     }
-                } else {
-                    c.preventAttacking = false;
-                }
+                } else { c.preventAttacking = false; }
 
                 if(c.state === 'driving') {
                     c.x += c.dirX * c.speed; c.y += c.dirY * c.speed;
                     if(Math.abs(c.x) > 2400) { c.dirX *= -1; c.angle += Math.PI; }
                     if(Math.abs(c.y) > 2400) { c.dirY *= -1; c.angle += Math.PI; }
                     
-                    // Nur angreifen wenn nicht durch Parken blockiert
                     if(dToPlayer < 150 && !c.preventAttacking && Math.random() < 0.005) {
                          c.state = 'attacking'; showFloatingText("Hey!", c.x, c.y - 20);
                     }
-
                     if(Math.random() < 0.001) { c.state = 'stopped'; c.timer = 150 + Math.random()*200; c.speed = 0; }
                 } else if(c.state === 'stopped') {
                     c.timer--; if(c.timer <= 0) { c.state = 'driving'; c.speed = c.baseSpeed; }
@@ -538,12 +536,7 @@
             for (let b of mapData.buildings) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(b.x + 8, b.y + 12, b.w, b.h); ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.fillStyle = b.roofColor; if(b.rType === 'h') { ctx.fillRect(b.x-5, b.y-5, b.w+10, b.h/2+5); ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(b.x-5, b.y+b.h/2, b.w+10, b.h/2+5); ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x-5, b.y+b.h/2); ctx.lineTo(b.x+b.w+5, b.y+b.h/2); ctx.stroke(); } else { ctx.fillRect(b.x-5, b.y-5, b.w/2+5, b.h+10); ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(b.x+b.w/2, b.y-5, b.w/2+5, b.h+10); ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x+b.w/2, b.y-5); ctx.lineTo(b.x+b.w/2, b.y+b.h+5); ctx.stroke(); } ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 8, b.doorY - 8, 16, 16); }
             for (let t of mapData.trees) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(t.x+5, t.y+5, t.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill(); }
             if (gameState.mission && !gameState.isDelivering) { let m = gameState.mission; ctx.beginPath(); ctx.arc(m.triggerX, m.triggerY, m.radius + Math.sin(m.pulse) * 5, 0, Math.PI * 2); ctx.fillStyle = `rgba(255, 204, 0, ${gameState.brakingForMission ? 0.6 : 0.3})`; ctx.fill(); ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.stroke(); ctx.beginPath(); ctx.moveTo(m.triggerX, m.triggerY); ctx.lineTo(m.doorX, m.doorY); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = '#fff'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(m.type.icon, m.triggerX, m.triggerY); }
-            for(let c of competitors) { 
-                ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.angle); ctx.fillStyle = c.color; ctx.fillRect(-c.l/2, -c.w/2, c.l, c.w); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-c.l/2, -c.w/2, c.l, c.w); ctx.fillStyle = '#add8e6'; ctx.fillRect(c.l/2 - 12, -c.w/2 + 2, 8, c.w - 4); 
-                if(c.state === 'stopped' || c.state === 'attacking') { 
-                    ctx.fillStyle = 'red'; ctx.fillRect(-c.l/2, -c.w/2 + 2, 4, 6); ctx.fillRect(-c.l/2, c.w/2 - 8, 4, 6); // Bremslichter
-                } 
-                ctx.restore(); if(c.state === 'attacking') { ctx.fillStyle = c.color; ctx.beginPath(); ctx.arc(c.x + 25, c.y - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke(); } }
+            for(let c of competitors) { ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.angle); ctx.fillStyle = c.color; ctx.fillRect(-c.l/2, -c.w/2, c.l, c.w); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-c.l/2, -c.w/2, c.l, c.w); ctx.fillStyle = '#add8e6'; ctx.fillRect(c.l/2 - 12, -c.w/2 + 2, 8, c.w - 4); if(c.state === 'stopped' || c.state === 'attacking') { ctx.fillStyle = 'red'; ctx.fillRect(-c.l/2, -c.w/2 + 2, 4, 6); ctx.fillRect(-c.l/2, c.w/2 - 8, 4, 6); } ctx.restore(); if(c.state === 'attacking') { ctx.fillStyle = c.color; ctx.beginPath(); ctx.arc(c.x + 25, c.y - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke(); } }
             for(let p of projectiles) { ctx.save(); ctx.translate(p.x, p.y - Math.max(0, p.z)); ctx.rotate(frameCount * 0.2); ctx.fillStyle = '#8b4513'; ctx.fillRect(-6, -6, 12, 12); ctx.strokeStyle = '#111'; ctx.lineWidth = 1; ctx.strokeRect(-6, -6, 12, 12); ctx.restore(); }
             
             ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
@@ -608,11 +601,10 @@
                 let walkSwing = 0; if(postman.state === 'to_door' || postman.state === 'to_car') walkSwing = Math.sin(frameCount * 0.5) * 4; 
 
                 // Jackenfarbe (Scooter: Schwarz #111; Transporter: Rot #d40511)
-                let jacketRed = '#d40511'; let jacketBlack = '#111'; let jacketYellow = '#ffcc00';
-                let coatColor = car.type === 'transporter' ? jacketRed : jacketBlack;
-
+                let coatColor = car.type === 'transporter' ? '#d40511' : '#111'; 
                 ctx.fillStyle = coatColor; ctx.fillRect(-4 + walkSwing/2, -6, 8, 12); ctx.fillRect(-4 - walkSwing/2, -6, 8, 12); 
-                ctx.fillStyle = jacketYellow; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle='#111'; ctx.stroke(); ctx.fillStyle = jacketYellow; ctx.beginPath(); ctx.arc(2, 0, 4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+                
+                ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle='#111'; ctx.stroke(); ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(2, 0, 4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
                 ctx.restore();
             }
 
