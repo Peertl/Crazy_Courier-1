@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Anti-Stau & Kollisionen</title>
+    <title>DHL GTA - Finale Version (Crash Fix)</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -126,6 +126,7 @@
         let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         let deviceType = isMobile ? 'Handy' : 'PC';
 
+        // Lade Assets
         const postmanImgs = {
             post: { letter: { left: new Image(), right: new Image() }, parcel: { left: new Image(), right: new Image() }, solo: { left: new Image(), right: new Image() } },
             dhl: { parcel: { left: new Image(), right: new Image() }, solo: { left: new Image(), right: new Image() } },
@@ -159,10 +160,9 @@
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
-        // --- PROPORTIONEN GEFIXT ---
         const VEHICLES = {
             bike: { l: 80, w: 35, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.1, braking: 0.15, maxSteer: 0.02, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' },
-            scooter: { l: 100, w: 42, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' }, // Scooter entzerrt
+            scooter: { l: 100, w: 42, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
             transporter: { l: 125, w: 48, maxSpeed: 2.75, displaySpeed: 50, acceleration: 0.12, braking: 0.15, maxSteer: 0.025, offroadFriction: 0.92, type: 'transporter', name: 'Paket' }
         };
 
@@ -184,13 +184,13 @@
             while(!validSpawn) {
                 let startPos = (Math.random() * 4000) - 2000; let dir = Math.random() > 0.5 ? 1 : -1;
                 aiX = onXAxis ? startPos : line + (dir > 0 ? 40 : -40); aiY = onXAxis ? line + (dir > 0 ? 40 : -40) : startPos;
-                if (Math.hypot(aiX - car.x, aiY - car.y) > 600) validSpawn = true; // Weit weg vom Spieler spawnen
+                if (Math.hypot(aiX - car.x, aiY - car.y) > 600) validSpawn = true;
             }
             let brand = brandList[Math.floor(Math.random() * brandList.length)];
             let angle = onXAxis ? (aiX > 0 ? Math.PI : 0) : (aiY > 0 ? -Math.PI/2 : Math.PI/2);
             return {
                 id: Math.random(),
-                x: aiX, y: aiY, l: 125, w: 48,
+                x: aiX, y: aiY, l: 121, w: 46,
                 speed: 2 + Math.random(), baseSpeed: 2 + Math.random(),
                 dirX: onXAxis ? (aiX > 0 ? -1: 1) : 0, dirY: onXAxis ? 0 : (aiY > 0 ? -1 : 1),
                 angle: angle, baseAngle: angle,
@@ -239,6 +239,7 @@
 
         const gameState = { score: 0, isDelivering: false, brakingForMission: false, mission: null, lastMissionBId: null, floatingTexts: [], cooldown: 0 };
         const MISSION_TYPES = [ { name: 'Brief', waitTime: 0, color: '#fff', icon: '✉️' }, { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '📦' }, { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '🟫' } ];
+        
         const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null, lastAngle: 0 };
         const attacker = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.35, waitTimer: 0, type: null, sourceBrand: null, pose: 'throwing', attackingCompetitorId: null, lastAngle: 0 };
 
@@ -259,7 +260,7 @@
         function startGame(vehicleKey) {
             let v = VEHICLES[vehicleKey]; car.l = v.l; car.w = v.w; car.maxSpeed = v.maxSpeed; car.displaySpeed = v.displaySpeed; car.acceleration = v.acceleration; car.braking = v.braking; car.maxSteer = v.maxSteer; car.offroadFriction = v.offroadFriction; car.type = v.type; car.name = v.name;
             initMapAndAI(); car.x = 0; car.y = -40; car.angle = 0; car.speed = 0; car.steeringAngle = 0; gameState.score = 0; gameState.isDelivering = false; gameState.brakingForMission = false; gameState.cooldown = 0; gameState.mission = null; gameState.lastMissionBId = null; postman.state = 'idle'; document.getElementById('scoreDisplay').innerText = `0`; document.getElementById('startScreen').style.display = 'none'; document.getElementById('ui').style.display = 'flex'; document.getElementById('restartBtn').style.display = 'block';
-            if(isTouchDevice) { document.getElementById('touchControllerContainer').style.display = 'block'; }
+            if(isMobile) { document.getElementById('touchControllerContainer').style.display = 'block'; }
             bgMusic.currentTime = 0; bgMusic.play().catch(e => console.log("Audio Play verweigert"));
             gameActive = true; spawnMission();
         }
@@ -294,11 +295,8 @@
             for(let b of mapData.buildings) if(rectDist(nextX, nextY, b.x, b.y, b.w, b.h) < carRadius) return {hit: true, type: 'solid'};
             for(let g of mapData.garages) if(rectDist(nextX, nextY, g.x, g.y, g.w, g.h) < carRadius) return {hit: true, type: 'solid'};
             for(let f of mapData.fences) if(rectDist(nextX, nextY, f.x, f.y, f.w, f.h) < carRadius) return {hit: true, type: 'solid'};
-            
-            // Spieler <-> KI Kollision WIEDER DA!
-            for(let c of competitors) { 
-                if(Math.hypot(nextX - c.x, nextY - c.y) < (car.w/2 + c.w/2 + 5)) return {hit: true, type: 'solid', ai: c}; 
-            }
+            // Spieler prallt an KI ab
+            for(let c of competitors) { if(Math.hypot(nextX - c.x, nextY - c.y) < (car.w/2 + c.w/2 + 5)) return {hit: true, type: 'solid', ai: c}; }
             return {hit: false};
         }
 
@@ -332,19 +330,20 @@
             frameCount++;
             if(!bgMusic.paused && bgMusic.duration > 0) { let timeLeft = Math.max(0, bgMusic.duration - bgMusic.currentTime); let mins = Math.floor(timeLeft / 60); let secs = Math.floor(timeLeft % 60).toString().padStart(2, '0'); document.getElementById('timerDisplay').innerText = `⏱️ ${mins}:${secs}`; }
 
-            // --- KI UPDATE (MIT STAU-FIX) ---
+            // --- KI UPDATE (Mit Stau Fix & Kollisionsvermeidung) ---
             for(let i = 0; i < competitors.length; i++) {
                 let c = competitors[i];
                 let dToPlayer = Math.hypot(c.x - car.x, c.y - car.y);
                 let playerParked = (car.speed < 0.1 || gameState.brakingForMission || gameState.isDelivering);
                 
-                if (playerParked && dToPlayer < (car.l/2 + c.l/2 + 20)) {
+                // Aggressions-Check gegen geparkten Spieler
+                if (playerParked && dToPlayer < (car.l/2 + c.l/2 + 30)) {
                     let dx = car.x - c.x, dy = car.y - c.y; let angleToPlayer = Math.atan2(dy, dx); let diffAngle = Math.abs(c.angle - angleToPlayer); if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
                     if (diffAngle < Math.PI/2) { if(c.state !== 'stopped_reckless' && c.state !== ' Prepare_Attack' && c.state !== 'Attack_Sequence' && c.state !== 'traffic_jam') { c.state = 'stopped'; c.timer = 10; c.speed = 0; c.preventAttacking = true; } }
                 } else { c.preventAttacking = false; }
 
                 if(c.state === 'driving') {
-                    // Simpler Stau-Check: Steht jemand vor mir?
+                    // Stau-Check: Steht jemand vor mir?
                     let isBlocked = false;
                     for(let other of competitors) {
                         if(other.id === c.id) continue;
@@ -352,20 +351,23 @@
                             let angleToOther = Math.atan2(other.y - c.y, other.x - c.x);
                             let diffAngle = Math.abs(c.angle - angleToOther);
                             if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
-                            if (diffAngle < Math.PI/4) { isBlocked = true; break; } // Jemand direkt davor
+                            if (diffAngle < Math.PI/4) { isBlocked = true; break; }
                         }
                     }
 
                     if (isBlocked) {
                         c.state = 'traffic_jam';
-                        c.timer = 180; // Warte 3 Sekunden
+                        c.timer = 180; // 3 Sekunden im Stau
                         c.speed = 0;
                     } else {
                         c.x += c.dirX * c.speed; c.y += c.dirY * c.speed;
                         if(Math.abs(c.x) > 2400) { c.dirX *= -1; c.angle += Math.PI; c.baseAngle = c.angle; }
                         if(Math.abs(c.y) > 2400) { c.dirY *= -1; c.angle += Math.PI; c.baseAngle = c.angle; }
                         
-                        if(dToPlayer < 150 && !c.preventAttacking && Math.random() < 0.005) { c.state = ' Prepare_Attack'; c.timer = 60; c.speed = 0; showFloatingText("Achtung!", c.x, c.y - 20); }
+                        // Attacke triggern
+                        if(dToPlayer < 150 && !c.preventAttacking && Math.random() < 0.005) { 
+                            c.state = ' Prepare_Attack'; c.timer = 60; c.speed = 0; showFloatingText("Achtung!", c.x, c.y - 20); 
+                        }
                         
                         // Rücksichtsloses Parken
                         if(Math.random() < 0.0005) { 
@@ -375,7 +377,9 @@
                                 let drift = 20 + Math.random()*40;
                                 if(c.dirX !== 0) c.y += (Math.random()>0.5?1:-1) * drift; else c.x += (Math.random()>0.5?1:-1) * drift;
                             }
-                        } else if(Math.random() < 0.001) { c.state = 'stopped'; c.timer = 150 + Math.random()*200; c.speed = 0; }
+                        } else if(Math.random() < 0.001) { 
+                            c.state = 'stopped'; c.timer = 150 + Math.random()*200; c.speed = 0; 
+                        }
                     }
                 } else if(c.state === 'stopped' || c.state === 'stopped_reckless') {
                     c.timer--;
@@ -383,10 +387,10 @@
                 } else if(c.state === 'traffic_jam') {
                     c.timer--;
                     if(c.timer <= 0) {
-                        // Stau auflösen -> Despawn und Respawn woanders
+                        // Zu lange im Stau! Fahrzeug wird despawnt und neu gespawnt (löst Staus auf)
                         competitors[i] = spawnSingleAI();
                     } else {
-                        // Checken ob der Weg wieder frei ist
+                        // Prüfen ob weitergefahren werden kann
                         let isBlocked = false;
                         for(let other of competitors) {
                             if(other.id === c.id) continue;
@@ -410,15 +414,14 @@
             }
 
             // --- ATTACKER (WERFER) UPDATE ---
-            function attackerUpdate() {
-                if(attacker.state === 'idle') return;
-                
+            if(attacker.state !== 'idle') {
                 if(attacker.state === 'to_attack_pos') {
                     let dx = attacker.targetX - attacker.x; let dy = attacker.targetY - attacker.y; let dist = Math.hypot(dx, dy);
                     if(dist > attacker.speed) { attacker.x += (dx/dist) * attacker.speed; attacker.y += (dy/dist) * attacker.speed; attacker.lastAngle = Math.atan2(dy, dx); } 
                     else { attacker.state = 'throwing'; attacker.pose = 'throwing'; attacker.timer = 30; }
                 } else if(attacker.state === 'throwing') {
-                    attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x); // Immer zum Spieler schauen!
+                    // Dreht sich immer zum Spieler beim Werfen!
+                    attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x);
                     attacker.timer--;
                     if(attacker.timer <= 0) {
                         const c = competitors.find(comp => comp.id === attacker.attackingCompetitorId);
@@ -426,7 +429,7 @@
                         attacker.state = 'after_throw'; attacker.pose = 'after_throw'; attacker.timer = 60; 
                     }
                 } else if(attacker.state === 'after_throw') {
-                    attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x); // Immer zum Spieler schauen!
+                    attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x);
                     attacker.timer--;
                     if(attacker.timer <= 0) {
                         const c = competitors.find(comp => comp.id === attacker.attackingCompetitorId);
@@ -443,11 +446,10 @@
                     }
                 }
             }
-            attackerUpdate();
 
             for(let i = projectiles.length-1; i>=0; i--) { let p = projectiles[i]; p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vz -= 0.2; p.life--; if(Math.hypot(car.x - p.x, car.y - p.y) < car.w/2 + 10 && p.z < 20) { car.speed *= 0.6; showFloatingText("💥 Treffer!", car.x, car.y - 30); projectiles.splice(i, 1); } else if(p.life <= 0) projectiles.splice(i, 1); }
             if (gameState.cooldown > 0) gameState.cooldown--;
-            
+
             if (gameState.isDelivering) {
                 inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0; let dx = postman.targetX - postman.x, dy = postman.targetY - postman.y; let dist = Math.hypot(dx, dy); if (postman.state === 'to_door') { if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } else { if(postman.type.name === 'Brief') { successDelivery(); } else { postman.state = 'waiting'; document.getElementById('missionInfo').innerText = "Zustellung..."; } } } else if (postman.state === 'waiting') { postman.waitTimer--; if (postman.waitTimer <= 0) { if(postman.type.name === 'Paket') { if(deviceType === 'Handy') { postman.state = 'signing'; document.getElementById('signatureUI').style.display = 'block'; sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); } else { postman.state = 'typing'; document.getElementById('keyboardPackageUI').style.display = 'block'; document.getElementById('recipientName').value = ''; document.getElementById('recipientName').focus(); } } else { successDelivery(); } } } else if (postman.state === 'to_car') { postman.targetX = car.x; postman.targetY = car.y; dx = postman.targetX - postman.x; dy = postman.targetY - postman.y; dist = Math.hypot(dx, dy); if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } else { postman.state = 'idle'; gameState.isDelivering = false; spawnMission(); } } 
             } else {
@@ -472,18 +474,28 @@
                 let col = checkCollision(nextX, nextY); 
                 
                 if (col.hit) { 
+                    // Kollision mit KI (Rammen)
                     if (col.ai && car.type === 'transporter') { 
-                        car.speed *= 0.7; col.ai.x += Math.cos(car.angle) * Math.abs(car.speed) * 1.5; col.ai.y += Math.sin(car.angle) * Math.abs(car.speed) * 1.5; car.x = nextX; car.y = nextY; col.ai.state = 'attacking'; showFloatingText("RUMMS!", col.ai.x, col.ai.y - 20); 
+                        car.speed *= 0.7; 
+                        col.ai.x += Math.cos(car.angle) * Math.abs(car.speed) * 1.5; col.ai.y += Math.sin(car.angle) * Math.abs(car.speed) * 1.5; 
+                        car.x = nextX; car.y = nextY; 
+                        col.ai.state = ' Prepare_Attack'; col.ai.timer = 60; showFloatingText("RUMMS!", col.ai.x, col.ai.y - 20); 
                     } else { 
                         car.speed *= 0.2; 
                         let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; 
                         if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
+                        
                         // ANTI STUCK BOUNCE
                         if(!canMoveX && !canMoveY) { 
                             if(col.ai) { 
-                                let pushAngle = Math.atan2(car.y - col.ai.y, car.x - col.ai.x); car.x += Math.cos(pushAngle) * 2; car.y += Math.sin(pushAngle) * 2; col.ai.state = 'attacking'; showFloatingText("Hey!", col.ai.x, col.ai.y - 20); 
+                                let pushAngle = Math.atan2(car.y - col.ai.y, car.x - col.ai.x); 
+                                car.x += Math.cos(pushAngle) * 2.5; car.y += Math.sin(pushAngle) * 2.5; 
+                                col.ai.state = ' Prepare_Attack'; col.ai.timer = 60; showFloatingText("Hey!", col.ai.x, col.ai.y - 20); 
                             } else { 
-                                car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 2 : -2); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 2 : -2); car.speed = 0;
+                                // Wand-Abpraller, damit man den Rückwärtsgang einlegen kann
+                                car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 3 : -3); 
+                                car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 3 : -3); 
+                                car.speed = 0;
                             } 
                         } 
                     } 
