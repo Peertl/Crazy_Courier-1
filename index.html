@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - PNG Grafiken & Animationen</title>
+    <title>DHL GTA - Größere Fahrzeuge</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -105,7 +105,6 @@
         let isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         let deviceType = isTouchDevice ? 'Handy' : 'PC';
 
-        // Lade die Custom PNG Bilder
         const imgBike = new Image(); imgBike.src = 'Bike.png';
         const imgScooter = new Image(); imgScooter.src = 'Street-Scooter.png';
         const imgTransporter = new Image(); imgTransporter.src = 'Transporter.png';
@@ -113,13 +112,14 @@
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
+        // --- FAHRZEUGE VERGRÖSSERT ---
         const VEHICLES = {
-            bike: { l: 38, w: 16, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.1, braking: 0.15, maxSteer: 0.05, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' },
-            scooter: { l: 45, w: 22, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
-            transporter: { l: 75, w: 28, maxSpeed: 2.75, displaySpeed: 50, acceleration: 0.12, braking: 0.15, maxSteer: 0.025, offroadFriction: 0.92, type: 'transporter', name: 'Paket' }
+            bike: { l: 45, w: 20, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.1, braking: 0.15, maxSteer: 0.05, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' },
+            scooter: { l: 65, w: 32, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
+            transporter: { l: 110, w: 42, maxSpeed: 2.75, displaySpeed: 50, acceleration: 0.12, braking: 0.15, maxSteer: 0.025, offroadFriction: 0.92, type: 'transporter', name: 'Paket' }
         };
 
-        const car = { x: 0, y: 0, l: 45, w: 22, angle: 0, speed: 0, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.2, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund', steeringAngle: 0, currentFriction: 0.96 };
+        const car = { x: 0, y: 0, l: 65, w: 32, angle: 0, speed: 0, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.2, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund', steeringAngle: 0, currentFriction: 0.96 };
 
         const mapData = { roads: [], curves: [], sidewalks: [], buildings: [], fences: [], trees: [], garages: [] };
         const roadW = 160; const gridSteps = [-2000, -1000, 0, 1000, 2000]; 
@@ -178,6 +178,7 @@
                 }
             }
 
+            // KI-Autos auch vergrößert
             for(let i=0; i<8; i++) {
                 let onXAxis = i % 2 === 0; let line = gridSteps[Math.floor(Math.random() * gridSteps.length)];
                 let validSpawn = false; let aiX, aiY;
@@ -187,7 +188,7 @@
                     if (Math.hypot(aiX - 0, aiY - (-40)) > 400) validSpawn = true;
                 }
                 competitors.push({
-                    x: aiX, y: aiY, l: 65, w: 30, speed: 1 + Math.random()*0.5, baseSpeed: 1 + Math.random()*0.5,
+                    x: aiX, y: aiY, l: 90, w: 38, speed: 1 + Math.random()*0.5, baseSpeed: 1 + Math.random()*0.5,
                     dirX: onXAxis ? (aiX > 0 ? -1: 1) : 0, dirY: onXAxis ? 0 : (aiY > 0 ? -1 : 1),
                     angle: onXAxis ? (aiX > 0 ? Math.PI : 0) : (aiY > 0 ? -Math.PI/2 : Math.PI/2),
                     color: aiColors[i % aiColors.length], state: 'driving', timer: 0
@@ -435,7 +436,7 @@
                     if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
                     else { 
                         if(postman.type.name === 'Brief') {
-                            successDelivery(); // Brief = 0 Sekunden warten!
+                            successDelivery(); 
                         } else {
                             postman.state = 'waiting'; document.getElementById('missionInfo').innerText = "Zustellung..."; 
                         }
@@ -453,7 +454,7 @@
                                 document.getElementById('recipientName').value = ''; document.getElementById('recipientName').focus();
                             }
                         } else {
-                            successDelivery(); // Päckchen fertig
+                            successDelivery(); 
                         }
                     }
                 } else if (postman.state === 'to_car') {
@@ -615,18 +616,18 @@
             } else {
                 if(car.type === 'bike') {
                     ctx.fillStyle = '#ffcc00'; ctx.fillRect(-car.l/2, -car.w/2, car.l, car.w);
-                    ctx.fillStyle = '#111'; ctx.fillRect(-car.l/2+2, car.w/2, 10, 4); ctx.fillRect(-car.l/2+2, -car.w/2-4, 10, 4); 
-                    ctx.save(); ctx.translate(car.l/2-4, 0); ctx.rotate(car.steeringAngle*3); ctx.fillRect(-5, -2, 10, 4); ctx.restore(); 
-                    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-5, 0, 5, 0, Math.PI*2); ctx.fill(); 
+                    ctx.fillStyle = '#111'; ctx.fillRect(-car.l/2+2, car.w/2, 14, 6); ctx.fillRect(-car.l/2+2, -car.w/2-6, 14, 6); 
+                    ctx.save(); ctx.translate(car.l/2-6, 0); ctx.rotate(car.steeringAngle*3); ctx.fillRect(-6, -3, 14, 6); ctx.restore(); 
+                    ctx.fillStyle = '#222'; ctx.beginPath(); ctx.arc(-8, 0, 7, 0, Math.PI*2); ctx.fill(); 
                 } else {
                     ctx.fillStyle = '#ffcc00'; ctx.fillRect(-car.l/2, -car.w/2, car.l, car.w);
                     ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-car.l/2, -car.w/2, car.l, car.w);
-                    let ws = car.type === 'transporter' ? 12 : 8; let offset = car.type === 'transporter' ? 15 : 12;
-                    ctx.fillStyle = '#1e90ff'; ctx.fillRect(car.l/2 - offset, -car.w/2 + 3, ws, car.w - 6); 
-                    if(car.type === 'transporter') { ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.save(); ctx.rotate(Math.PI/2); ctx.fillText('DHL', 0, 0); ctx.restore(); } 
-                    else { ctx.fillStyle = '#d32f2f'; ctx.beginPath(); ctx.arc(0, 4, 4, 0, Math.PI*2); ctx.fill(); }
+                    let ws = car.type === 'transporter' ? 18 : 12; let offset = car.type === 'transporter' ? 22 : 18;
+                    ctx.fillStyle = '#1e90ff'; ctx.fillRect(car.l/2 - offset, -car.w/2 + 4, ws, car.w - 8); 
+                    if(car.type === 'transporter') { ctx.fillStyle = '#d32f2f'; ctx.font = 'bold 16px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.save(); ctx.rotate(Math.PI/2); ctx.fillText('DHL', 0, 0); ctx.restore(); } 
+                    else { ctx.fillStyle = '#d32f2f'; ctx.beginPath(); ctx.arc(0, 4, 6, 0, Math.PI*2); ctx.fill(); }
                     
-                    ctx.fillStyle = '#111'; let wX = car.l/2 - 12, wY = car.w/2, wW = 12, wH = 5;
+                    ctx.fillStyle = '#111'; let wX = car.l/2 - 18, wY = car.w/2, wW = 16, wH = 6;
                     ctx.fillRect(-wX - wW/2, wY, wW, wH); ctx.fillRect(-wX - wW/2, -wY - wH, wW, wH);       
                     ctx.save(); ctx.translate(wX, wY + wH/2); ctx.rotate(car.steeringAngle * 4); ctx.fillRect(-wW/2, -wH/2, wW, wH); ctx.restore(); 
                     ctx.save(); ctx.translate(wX, -wY - wH/2); ctx.rotate(car.steeringAngle * 4); ctx.fillRect(-wW/2, -wH/2, wW, wH); ctx.restore(); 
@@ -634,32 +635,22 @@
             }
             ctx.restore(); 
 
-            // Postbote prozedural animieren
             if (gameState.isDelivering) {
                 ctx.save();
                 ctx.translate(postman.x, postman.y);
-                
                 let walkAngle = 0;
-                if (postman.state === 'to_door' || postman.state === 'to_car') {
-                    walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x);
-                } else {
-                    walkAngle = Math.PI/2; 
-                }
+                if (postman.state === 'to_door' || postman.state === 'to_car') walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x);
+                else walkAngle = Math.PI/2; 
                 ctx.rotate(walkAngle);
                 
                 let walkSwing = 0;
-                if(postman.state === 'to_door' || postman.state === 'to_car') {
-                    walkSwing = Math.sin(frameCount * 0.5) * 4; 
-                }
+                if(postman.state === 'to_door' || postman.state === 'to_car') walkSwing = Math.sin(frameCount * 0.5) * 4; 
 
                 let coatColor = car.type === 'transporter' ? '#d40511' : '#111'; 
-                ctx.fillStyle = coatColor; 
-                ctx.fillRect(-4 + walkSwing/2, -6, 8, 12); 
-                ctx.fillRect(-4 - walkSwing/2, -6, 8, 12); 
+                ctx.fillStyle = coatColor; ctx.fillRect(-4 + walkSwing/2, -6, 8, 12); ctx.fillRect(-4 - walkSwing/2, -6, 8, 12); 
                 
                 ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle='#111'; ctx.stroke();
                 ctx.fillStyle = '#ffcc00'; ctx.beginPath(); ctx.arc(2, 0, 4, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-                
                 ctx.restore();
             }
 
