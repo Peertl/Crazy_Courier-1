@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Schnelle Attacken</title>
+    <title>DHL GTA - Aggressive KI & Rechtsverkehr</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -176,23 +176,46 @@
         const houseColors = ['#8d6e63', '#a1887f', '#bcaaa4', '#795548', '#d7ccc8', '#9e9e9e'];
         const roofColors = ['#5d4037', '#4e342e', '#3e2723', '#424242'];
 
+        // --- KI SPAWN LOGIK MIT KORREKTEM RECHTSVERKEHR ---
         function spawnSingleAI() {
             const brandList = ['fedex', 'ups', 'amazon', 'dpd', 'gls'];
             let onXAxis = Math.random() < 0.5; 
             let line = gridSteps[Math.floor(Math.random() * gridSteps.length)];
-            let validSpawn = false; let aiX, aiY;
+            let validSpawn = false; let aiX, aiY; let dir, dirX, dirY;
+            
             while(!validSpawn) {
-                let startPos = (Math.random() * 4000) - 2000; let dir = Math.random() > 0.5 ? 1 : -1;
-                aiX = onXAxis ? startPos : line + (dir > 0 ? 40 : -40); aiY = onXAxis ? line + (dir > 0 ? 40 : -40) : startPos;
+                let startPos = (Math.random() * 4000) - 2000; 
+                dir = Math.random() > 0.5 ? 1 : -1;
+                
+                // Korrekter Rechtsverkehr!
+                // Horizontale Straße (onXAxis): Richtung Rechts (+X) fährt auf der Unterseite (+Y). Richtung Links (-X) fährt auf der Oberseite (-Y).
+                // Vertikale Straße (!onXAxis): Richtung Runter (+Y) fährt auf der linken Seite (-X). Richtung Hoch (-Y) fährt auf der rechten Seite (+X).
+                if (onXAxis) {
+                    aiX = startPos;
+                    aiY = line + (dir > 0 ? 40 : -40); 
+                    dirX = dir; dirY = 0;
+                } else {
+                    aiX = line + (dir > 0 ? -40 : 40); 
+                    aiY = startPos;
+                    dirX = 0; dirY = dir;
+                }
+                
                 if (Math.hypot(aiX - car.x, aiY - car.y) > 600) validSpawn = true;
             }
+            
             let brand = brandList[Math.floor(Math.random() * brandList.length)];
-            let angle = onXAxis ? (aiX > 0 ? Math.PI : 0) : (aiY > 0 ? -Math.PI/2 : Math.PI/2);
+            // Winkel exakt an Richtung anpassen
+            let angle = 0;
+            if (dirX === 1) angle = 0;
+            if (dirX === -1) angle = Math.PI;
+            if (dirY === 1) angle = Math.PI/2;
+            if (dirY === -1) angle = -Math.PI/2;
+
             return {
                 id: Math.random(),
                 x: aiX, y: aiY, l: 121, w: 46,
                 speed: 2 + Math.random(), baseSpeed: 2 + Math.random(),
-                dirX: onXAxis ? (aiX > 0 ? -1: 1) : 0, dirY: onXAxis ? 0 : (aiY > 0 ? -1 : 1),
+                dirX: dirX, dirY: dirY,
                 angle: angle, baseAngle: angle,
                 brand: brand,
                 dpdVar: (brand === 'dpd') ? (Math.random() < 0.5 ? 1 : 2) : 0,
@@ -239,10 +262,10 @@
 
         const gameState = { score: 0, isDelivering: false, brakingForMission: false, mission: null, lastMissionBId: null, floatingTexts: [], cooldown: 0 };
         const MISSION_TYPES = [ { name: 'Brief', waitTime: 0, color: '#fff', icon: '✉️' }, { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '📦' }, { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '🟫' } ];
-        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null, lastAngle: 0 };
         
-        // ATTACKER IST JETZT AUCH SCHNELL (0.7)
-        const attacker = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null, sourceBrand: null, pose: 'throwing', attackingCompetitorId: null, lastAngle: 0 };
+        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null, lastAngle: 0 };
+        // ATTACKER EXTREM SCHNELL (Speed 1.5)
+        const attacker = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 1.5, waitTimer: 0, type: null, sourceBrand: null, pose: 'throwing', attackingCompetitorId: null, lastAngle: 0 };
 
         function spawnMission() {
             let minD = 0, maxD = 9999;
@@ -296,40 +319,7 @@
             for(let b of mapData.buildings) if(rectDist(nextX, nextY, b.x, b.y, b.w, b.h) < carRadius) return {hit: true, type: 'solid'};
             for(let g of mapData.garages) if(rectDist(nextX, nextY, g.x, g.y, g.w, g.h) < carRadius) return {hit: true, type: 'solid'};
             for(let f of mapData.fences) if(rectDist(nextX, nextY, f.x, f.y, f.w, f.h) < carRadius) return {hit: true, type: 'solid'};
-            // Spieler <-> KI Kollision 
-            for(let c of competitors) { if(Math.hypot(nextX - c.x, nextY - c.y) < (car.w/2 + c.w/2 + 5)) return {hit: true, type: 'solid', ai: c}; }
             return {hit: false};
-        }
-
-        // KI-KI Kollision (Perception)
-        function competitorsPerceptionUpdate() {
-            for(let c of competitors) {
-                if(c.state !== 'driving') {
-                    c.yieldedTo = null; 
-                    continue; 
-                }
-                const sensorLength = car.l + c.speed * 20; const sensorWidth = car.w + 10;
-                const sensorX = c.x + Math.cos(c.angle) * (car.l/2 + sensorLength/2); const sensorY = c.y + Math.sin(c.angle) * (car.l/2 + sensorLength/2);
-                let yieldNeeded = false; let potentialCollisions = [];
-                for(let other of competitors) {
-                    if(other.id === c.id || other.state === ' Prepare_Attack' || other.state === 'Attack_Sequence') continue;
-                    const distToOther = Math.hypot(sensorX - other.x, sensorY - other.y);
-                    const collisionRadius = (sensorWidth/2 + other.w/2 + sensorLength/2 + other.l/2) / 2; 
-                    if(distToOther < collisionRadius) { potentialCollisions.push(other); }
-                }
-                if(Math.hypot(sensorX - car.x, sensorY - car.y) < (sensorWidth/2 + car.w/2 + sensorLength/2 + car.l/2)/2) { yieldNeeded = true; }
-                if(yieldNeeded || potentialCollisions.length > 0) {
-                    c.speed = 0; c.state = 'stopped'; c.timer = 30 + Math.random()*50; 
-                    if(potentialCollisions.length > 0) {
-                        let priorityLevelC = c.y * 1000 + c.x;
-                        for(let other of potentialCollisions) {
-                            let priorityLevelOther = other.y * 1000 + other.x;
-                            if(priorityLevelC < priorityLevelOther) { c.timer = 100 + Math.random()*200; } 
-                            else if (priorityLevelC === priorityLevelOther) { if(Math.random() < 0.5) c.timer = 100 + Math.random()*200; }
-                        }
-                    }
-                }
-            }
         }
 
         function getTerrainFriction(x, y) {
@@ -362,43 +352,40 @@
             frameCount++;
             if(!bgMusic.paused && bgMusic.duration > 0) { let timeLeft = Math.max(0, bgMusic.duration - bgMusic.currentTime); let mins = Math.floor(timeLeft / 60); let secs = Math.floor(timeLeft % 60).toString().padStart(2, '0'); document.getElementById('timerDisplay').innerText = `⏱️ ${mins}:${secs}`; }
 
-            competitorsPerceptionUpdate();
-
+            // --- KI UPDATE ---
             for(let i = 0; i < competitors.length; i++) {
                 let c = competitors[i];
                 let dToPlayer = Math.hypot(c.x - car.x, c.y - car.y);
-                let playerParked = (car.speed < 0.1 || gameState.brakingForMission || gameState.isDelivering);
                 
-                // Aggressions-Check gegen geparkten Spieler
-                if (playerParked && dToPlayer < (car.l/2 + c.l/2 + 30)) {
-                    let dx = car.x - c.x, dy = car.y - c.y; let angleToPlayer = Math.atan2(dy, dx); let diffAngle = Math.abs(c.angle - angleToPlayer); if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
-                    if (diffAngle < Math.PI/2) { if(c.state !== 'stopped_reckless' && c.state !== ' Prepare_Attack' && c.state !== 'Attack_Sequence' && c.state !== 'traffic_jam') { c.state = 'stopped'; c.timer = 10; c.speed = 0; c.preventAttacking = true; } }
-                } else { c.preventAttacking = false; }
+                // Attacke Triggern (Sehr schnell und aggressiv!)
+                if(dToPlayer < 200 && Math.random() < 0.02 && c.state === 'driving') { 
+                    c.state = ' Prepare_Attack'; 
+                    c.timer = 5; // Nur 5 Frames Verzögerung bis der Sprung beginnt
+                    c.speed = 0; 
+                    showFloatingText("Achtung!", c.x, c.y - 20); 
+                }
 
                 if(c.state === 'driving') {
-                    // Stau-Check
+                    // Stau-Check (Blockiert von anderem KI Fahrzeug)
                     let isBlocked = false;
                     for(let other of competitors) {
                         if(other.id === c.id) continue;
-                        if(Math.hypot(c.x - other.x, c.y - other.y) < 140) {
-                            let angleToOther = Math.atan2(other.y - c.y, other.x - c.x); let diffAngle = Math.abs(c.angle - angleToOther); if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
+                        if(Math.hypot(c.x - other.x, c.y - other.y) < 160) { // Etwas größerer Check-Radius für Trucks
+                            let angleToOther = Math.atan2(other.y - c.y, other.x - c.x); 
+                            let diffAngle = Math.abs(c.angle - angleToOther); 
+                            if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
                             if (diffAngle < Math.PI/4) { isBlocked = true; break; }
                         }
                     }
 
                     if (isBlocked) {
                         c.state = 'traffic_jam';
-                        c.timer = 180; // 3 Sekunden
+                        c.timer = 120; // 2 Sekunden im Stau warten
                         c.speed = 0;
                     } else {
                         c.x += c.dirX * c.speed; c.y += c.dirY * c.speed;
                         if(Math.abs(c.x) > 2400) { c.dirX *= -1; c.angle += Math.PI; c.baseAngle = c.angle; }
                         if(Math.abs(c.y) > 2400) { c.dirY *= -1; c.angle += Math.PI; c.baseAngle = c.angle; }
-                        
-                        // Attacke auslösen (SCHNELLER: Nur 20 Frames statt 60 warten)
-                        if(dToPlayer < 150 && !c.preventAttacking && Math.random() < 0.005) { 
-                            c.state = ' Prepare_Attack'; c.timer = 20; c.speed = 0; showFloatingText("Achtung!", c.x, c.y - 20); 
-                        }
                         
                         // Rücksichtsloses Parken
                         if(Math.random() < 0.0005) { 
@@ -414,16 +401,18 @@
                     }
                 } else if(c.state === 'stopped' || c.state === 'stopped_reckless') {
                     c.timer--;
-                    if(c.timer <= 0) { c.state = 'driving'; c.speed = c.baseSpeed; c.angle = (c.dirX !== 0) ? (c.dirX > 0 ? 0 : Math.PI) : (c.dirY > 0 ? Math.PI/2 : -Math.PI/2); }
+                    if(c.timer <= 0) { c.state = 'driving'; c.speed = c.baseSpeed; c.angle = c.baseAngle; }
                 } else if(c.state === 'traffic_jam') {
                     c.timer--;
                     if(c.timer <= 0) {
-                        competitors[i] = spawnSingleAI(); // Despawn
+                        // Stau Auflösung -> Fahrzeug wird despawnt und neu in die Welt gesetzt
+                        competitors[i] = spawnSingleAI();
                     } else {
+                        // Prüfen ob es weitergehen kann
                         let isBlocked = false;
                         for(let other of competitors) {
                             if(other.id === c.id) continue;
-                            if(Math.hypot(c.x - other.x, c.y - other.y) < 140) {
+                            if(Math.hypot(c.x - other.x, c.y - other.y) < 160) {
                                 let angleToOther = Math.atan2(other.y - c.y, other.x - c.x); let diffAngle = Math.abs(c.angle - angleToOther); if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
                                 if (diffAngle < Math.PI/4) { isBlocked = true; break; }
                             }
@@ -446,15 +435,17 @@
             if(attacker.state !== 'idle') {
                 if(attacker.state === 'to_attack_pos') {
                     let dx = attacker.targetX - attacker.x; let dy = attacker.targetY - attacker.y; let dist = Math.hypot(dx, dy);
-                    if(dist > attacker.speed) { attacker.x += (dx/dist) * attacker.speed; attacker.y += (dy/dist) * attacker.speed; attacker.lastAngle = Math.atan2(dy, dx); } 
-                    else { attacker.state = 'throwing'; attacker.pose = 'throwing'; attacker.timer = 15; } // SCHNELLER WERFEN (15)
-                } else if(attacker.state === 'throwing') {
+                    if(dist > attacker.speed) { attacker.x += (dx/dist) * attacker.speed; attacker.y += (dy/dist) * attacker.speed; } 
+                    else { attacker.state = 'throwing'; attacker.pose = 'throwing'; attacker.timer = 10; } // Nur 10 Frames ausholen
+                    // Dreht sich SOFORT zum Spieler
                     attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x);
+                } else if(attacker.state === 'throwing') {
+                    attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x); // Immer tracken
                     attacker.timer--;
                     if(attacker.timer <= 0) {
                         const c = competitors.find(comp => comp.id === attacker.attackingCompetitorId);
-                        if(c) { let angle = Math.atan2(car.y - attacker.y, car.x - attacker.x); projectiles.push({ x: attacker.x, y: attacker.y, z: 10, vx: Math.cos(angle)*2.5, vy: Math.sin(angle)*2.5, vz: 2, life: 40 }); }
-                        attacker.state = 'after_throw'; attacker.pose = 'after_throw'; attacker.timer = 30; // SCHNELLER ZURÜCK (30)
+                        if(c) { let angle = Math.atan2(car.y - attacker.y, car.x - attacker.x); projectiles.push({ x: attacker.x, y: attacker.y, z: 10, vx: Math.cos(angle)*4, vy: Math.sin(angle)*4, vz: 2, life: 40 }); } // Rasanter Wurf (Speed 4)
+                        attacker.state = 'after_throw'; attacker.pose = 'after_throw'; attacker.timer = 10; // Nur kurz posieren
                     }
                 } else if(attacker.state === 'after_throw') {
                     attacker.lastAngle = Math.atan2(car.y - attacker.y, car.x - attacker.x);
@@ -475,7 +466,16 @@
                 }
             }
 
-            for(let i = projectiles.length-1; i>=0; i--) { let p = projectiles[i]; p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vz -= 0.2; p.life--; if(Math.hypot(car.x - p.x, car.y - p.y) < car.w/2 + 10 && p.z < 20) { car.speed *= 0.6; showFloatingText("💥 Treffer!", car.x, car.y - 30); projectiles.splice(i, 1); } else if(p.life <= 0) projectiles.splice(i, 1); }
+            for(let i = projectiles.length-1; i>=0; i--) { 
+                let p = projectiles[i]; p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vz -= 0.2; p.life--; 
+                if(Math.hypot(car.x - p.x, car.y - p.y) < car.w/2 + 10 && p.z < 20) { 
+                    // HARTER TREFFER (Fast bis auf 0 abgebremst)
+                    car.speed *= 0.15; 
+                    showFloatingText("💥 Treffer!", car.x, car.y - 30); 
+                    projectiles.splice(i, 1); 
+                } else if(p.life <= 0) projectiles.splice(i, 1); 
+            }
+
             if (gameState.cooldown > 0) gameState.cooldown--;
 
             if (gameState.isDelivering) {
@@ -512,7 +512,7 @@
                 car.speed = Math.max(-car.maxSpeed/2, Math.min(car.maxSpeed, car.speed)); 
                 if(Math.abs(car.speed) < 0.05) car.speed = 0; 
                 
-                // LENKEN 
+                // NORMALE LENKUNG (Ohne Stand-Drehung)
                 if (Math.abs(car.speed) > 0.05) { 
                     let targetSteer = 0; if (inputs.left) targetSteer = -car.maxSteer; if (inputs.right) targetSteer = car.maxSteer; 
                     car.steeringAngle += (targetSteer - car.steeringAngle) * 0.15; 
@@ -522,24 +522,29 @@
                 let nextX = car.x + Math.cos(car.angle) * car.speed, nextY = car.y + Math.sin(car.angle) * car.speed; 
                 let col = checkCollision(nextX, nextY); 
                 
+                // KOLLISION ZURÜCK!
                 if (col.hit) { 
-                    if (col.ai && car.type === 'transporter') { 
-                        car.speed *= 0.7; col.ai.x += Math.cos(car.angle) * Math.abs(car.speed) * 1.5; col.ai.y += Math.sin(car.angle) * Math.abs(car.speed) * 1.5; car.x = nextX; car.y = nextY; 
-                        col.ai.state = ' Prepare_Attack'; col.ai.timer = 20; // FIX: Schnellere Reaction beim Rammen
-                        showFloatingText("RUMMS!", col.ai.x, col.ai.y - 20); 
-                    } else { 
-                        car.speed *= 0.2; 
-                        let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; 
-                        if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
-                        if(!canMoveX && !canMoveY) { 
-                            if(col.ai) { 
-                                let pushAngle = Math.atan2(car.y - col.ai.y, car.x - col.ai.x); car.x += Math.cos(pushAngle) * 2.5; car.y += Math.sin(pushAngle) * 2.5; 
-                                col.ai.state = ' Prepare_Attack'; col.ai.timer = 20; // FIX: Schnellere Reaction beim Rammen
-                                showFloatingText("Hey!", col.ai.x, col.ai.y - 20); 
-                            } else { 
-                                car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 2.5 : -2.5); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 2.5 : -2.5); car.speed = 0;
-                            } 
-                        } 
+                    // Mit KI (Gegner Wegrammen)
+                    for(let c of competitors) {
+                        if(Math.hypot(nextX - c.x, nextY - c.y) < (car.w/2 + c.w/2 + 5)) {
+                            if (car.type === 'transporter') { 
+                                car.speed *= 0.7; c.x += Math.cos(car.angle) * Math.abs(car.speed) * 1.5; c.y += Math.sin(car.angle) * Math.abs(car.speed) * 1.5; car.x = nextX; car.y = nextY; 
+                                c.state = ' Prepare_Attack'; c.timer = 5; showFloatingText("RUMMS!", c.x, c.y - 20); 
+                            } else {
+                                car.speed *= 0.2; car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 2.5 : -2.5); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 2.5 : -2.5); car.speed = 0;
+                                c.state = ' Prepare_Attack'; c.timer = 5; showFloatingText("Hey!", c.x, c.y - 20); 
+                            }
+                            return; // Wichtig: Bricht Loop ab
+                        }
+                    }
+
+                    // Mit Wand (Haus/Zaun)
+                    car.speed *= 0.2; 
+                    let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; 
+                    if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
+                    // ANTI STUCK BOUNCE (Damit man rückwärts rausfahren kann)
+                    if(!canMoveX && !canMoveY) { 
+                        car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 2.5 : -2.5); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 2.5 : -2.5); car.speed = 0;
                     } 
                 } else { car.x = nextX; car.y = nextY; }
 
@@ -589,6 +594,7 @@
 
             if (gameState.isDelivering) { ctx.save(); ctx.translate(postman.x, postman.y); let walkAngle = 0; if (postman.state === 'to_door' || postman.state === 'to_car') walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x); else walkAngle = postman.lastAngle; ctx.rotate(walkAngle); let delivererType = (car.type === 'transporter') ? 'dhl' : 'post'; let foot = (Math.floor(frameCount / 10) % 2 === 0) ? 'left' : 'right'; if (postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') foot = 'left'; let counter = 'solo'; if (postman.state === 'to_door' || postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') { if (postman.type.name === 'Brief' && delivererType === 'post') counter = 'letter'; else counter = 'parcel'; } if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel'; let activeSprite = null; try { activeSprite = postmanImgs[delivererType][counter][foot]; } catch(e) {} if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(activeSprite, -20, -20, 40, 40); } ctx.restore(); }
             
+            // Konkurrenz Zusteller Zeichnen (Attacker)
             if (attacker.state !== 'idle') {
                 ctx.save(); ctx.translate(attacker.x, attacker.y);
                 let walkAngle = 0; if (attacker.state === 'to_attack_pos' || attacker.state === 'back_to_car') walkAngle = Math.atan2(attacker.targetY - attacker.y, attacker.targetX - attacker.x); else walkAngle = attacker.lastAngle; ctx.rotate(walkAngle);
