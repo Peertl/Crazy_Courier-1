@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Finale Fixes & Konkurrenz</title>
+    <title>DHL GTA - Konkurrenz-Chaos & Park-Sünder</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -123,47 +123,43 @@
         const bgMusic = document.getElementById('gameMusic');
         let gameActive = false; let frameCount = 0;
         
-        let isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
-        let deviceType = isMobile ? 'Handy' : 'PC';
+        let isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        let deviceType = isTouchDevice ? 'Handy' : 'PC';
 
-        // Lade die Fahrzeug-Bilder (Scooter Pfad gefixt!)
         const imgBike = new Image(); imgBike.src = 'Bike.png';
         const imgScooter = new Image(); imgScooter.src = 'Street-Scooter.png'; 
         const imgTransporter = new Image(); imgTransporter.src = 'Transporter.png';
 
-        // Neue Bike Sprites
         const imgBikeLeftLeg = new Image(); imgBikeLeftLeg.src = 'Bike-Left-Leg.png';
         const imgBikeRightLeg = new Image(); imgBikeRightLeg.src = 'Bike-Right-Leg.png';
         const imgBikeLeftTurn = new Image(); imgBikeLeftTurn.src = 'Bike-Left-Turn.png';
         const imgBikeRightTurn = new Image(); imgBikeRightTurn.src = 'Bike-Right-Turn.png';
         const imgBikeDismounted = new Image(); imgBikeDismounted.src = 'Bike-dismounted.png';
 
-        // Konkurrenz-Bilder laden
         const imgFedExDrive = new Image(); imgFedExDrive.src = 'FedEx-Drive.png';
         const imgFedExStop = new Image(); imgFedExStop.src = 'FedEx-Stop.png';
         const imgUPSDrive = new Image(); imgUPSDrive.src = 'UPS-Drive.png';
         const imgUPStop = new Image(); imgUPStop.src = 'UPS-Stop.png';
+        const imgAmazonDrive = new Image(); imgAmazonDrive.src = 'Amazon-Drive.png';
+        const imgAmazonStop = new Image(); imgAmazonStop.src = 'Amazon-Stop.png';
+        const imgDPDDrive1 = new Image(); imgDPDDrive1.src = 'DPD-Drive.png'; 
+        const imgDPDDrive2 = new Image(); imgDPDDrive2.src = 'DPD-Drive-1.png';
+        const imgGLSDrive = new Image(); imgGLSDrive.src = 'GLS-Drive.png';
+        const imgGLSStop = new Image(); imgGLSStop.src = 'GLS-Stop.png';
 
-        // Zusteller-Bilder 
         const postmanImgs = {
             post: { letter: { left: new Image(), right: new Image() }, parcel: { left: new Image(), right: new Image() }, solo: { left: new Image(), right: new Image() } },
             dhl: { parcel: { left: new Image(), right: new Image() }, solo: { left: new Image(), right: new Image() } }
         };
-
-        postmanImgs.post.letter.left.src = 'Post-Zusteller-Letter-Left.png'; postmanImgs.post.letter.right.src = 'Post-Zusteller-Letter-Right.png';
-        postmanImgs.post.parcel.left.src = 'Post-Zusteller-Parcel-Left.png'; postmanImgs.post.parcel.right.src = 'Post-Zusteller-Parcel-Right.png';
-        postmanImgs.post.solo.left.src = 'Post-Zusteller-Solo-Left.png'; postmanImgs.post.solo.right.src = 'Post-Zusteller-Solo-Right.png';
-        postmanImgs.dhl.parcel.left.src = 'DHL-Zusteller-Parcel-Left.png'; postmanImgs.dhl.parcel.right.src = 'DHL-Zusteller-Parcel-Right.png';
-        postmanImgs.dhl.solo.left.src = 'DHL-Zusteller-Solo-Left.png'; postmanImgs.dhl.solo.right.src = 'DHL-Zusteller-Solo-Right.png';
+        postmanImgs.post.letter.left.src = 'Post-Zusteller-Letter-Left.png'; postmanImgs.post.letter.right.src = 'Post-Zusteller-Letter-Right.png'; postmanImgs.post.parcel.left.src = 'Post-Zusteller-Parcel-Left.png'; postmanImgs.post.parcel.right.src = 'Post-Zusteller-Parcel-Right.png'; postmanImgs.post.solo.left.src = 'Post-Zusteller-Solo-Left.png'; postmanImgs.post.solo.right.src = 'Post-Zusteller-Solo-Right.png'; postmanImgs.dhl.parcel.left.src = 'DHL-Zusteller-Parcel-Left.png'; postmanImgs.dhl.parcel.right.src = 'DHL-Zusteller-Parcel-Right.png'; postmanImgs.dhl.solo.left.src = 'DHL-Zusteller-Solo-Left.png'; postmanImgs.dhl.solo.right.src = 'DHL-Zusteller-Solo-Right.png';
 
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
-        // --- FAHRZEUG-DATENBANK MIT ANGEPASSTEN GRÖSSEN ---
         const VEHICLES = {
-            bike: { l: 80, w: 35, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.1, braking: 0.15, maxSteer: 0.02, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' },
-            scooter: { l: 100, w: 48, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
-            transporter: { l: 125, w: 48, maxSpeed: 2.75, displaySpeed: 50, acceleration: 0.12, braking: 0.15, maxSteer: 0.025, offroadFriction: 0.92, type: 'transporter', name: 'Paket' }
+            bike: { l: 90, w: 39, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.1, braking: 0.15, maxSteer: 0.02, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' },
+            scooter: { l: 91, w: 45, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
+            transporter: { l: 121, w: 46, maxSpeed: 2.75, displaySpeed: 50, acceleration: 0.12, braking: 0.15, maxSteer: 0.025, offroadFriction: 0.92, type: 'transporter', name: 'Paket' }
         };
 
         const car = { x: 0, y: 0, l: 65, w: 32, angle: 0, speed: 0, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.2, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund', steeringAngle: 0, currentFriction: 0.96 };
@@ -173,60 +169,45 @@
         const competitors = []; 
         let projectiles = [];
         
-        // FIX: const hinzugefügt, um Green-Screen-Crashes auf dem Handy zu verhindern!
         const houseColors = ['#8d6e63', '#a1887f', '#bcaaa4', '#795548', '#d7ccc8', '#9e9e9e'];
         const roofColors = ['#5d4037', '#4e342e', '#3e2723', '#424242'];
 
         function initMapAndAI() {
             mapData.roads = []; mapData.curves = []; mapData.sidewalks = []; mapData.buildings = []; mapData.fences = []; mapData.trees = []; mapData.garages = []; projectiles = [];
             competitors.length = 0;
-
-            for(let pos of gridSteps) {
-                mapData.roads.push({ x: -2500, y: pos - roadW/2, w: 5000, h: roadW });
-                mapData.roads.push({ x: pos - roadW/2, y: -2500, w: roadW, h: 5000 });
-            }
+            for(let pos of gridSteps) { mapData.roads.push({ x: -2500, y: pos - roadW/2, w: 5000, h: roadW }); mapData.roads.push({ x: pos - roadW/2, y: -2500, w: roadW, h: 5000 }); }
             let rW2 = roadW/2;
             mapData.curves.push({ cx: -2000, cy: -2000, r: rW2, start: Math.PI, end: 1.5*Math.PI }); mapData.curves.push({ cx: 2000, cy: -2000, r: rW2, start: 1.5*Math.PI, end: 2*Math.PI });
             mapData.curves.push({ cx: 2000, cy: 2000, r: rW2, start: 0, end: 0.5*Math.PI }); mapData.curves.push({ cx: -2000, cy: 2000, r: rW2, start: 0.5*Math.PI, end: Math.PI });
-
             for(let i=0; i<gridSteps.length-1; i++) {
                 for(let j=0; j<gridSteps.length-1; j++) {
                     let startX = gridSteps[i] + rW2; let startY = gridSteps[j] + rW2;
                     let width = gridSteps[i+1] - gridSteps[i] - roadW; let height = gridSteps[j+1] - gridSteps[j] - roadW;
-                    
                     mapData.sidewalks.push({ x: startX, y: startY, w: width, h: height });
                     let pad = 35; let blockX = startX + pad; let blockY = startY + pad; let blockW = width - pad*2; let blockH = height - pad*2;
-                    
                     mapData.fences.push({ x: blockX, y: blockY, w: blockW, h: 4 }); mapData.fences.push({ x: blockX, y: blockY+blockH-4, w: blockW, h: 4 });
                     mapData.fences.push({ x: blockX, y: blockY, w: 4, h: blockH }); mapData.fences.push({ x: blockX+blockW-4, y: blockY, w: 4, h: blockH });
-
                     let hSize = 100; let gap = 160;
-                    
                     for(let ix = blockX + 20; ix < blockX + blockW - 120; ix += gap) {
                         let c1 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r1 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: ix, y: blockY + 5, w: hSize, h: hSize, doorX: ix+hSize/2, doorY: blockY+5, haloX: ix+hSize/2, haloY: blockY - 25, color: c1, roofColor: r1, rType: 'h' });
                         if(Math.random()>0.5) mapData.garages.push({ x: ix+hSize, y: blockY+5, w: 40, h: 60, dir: 'up' });
-                        
                         let c2 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r2 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: ix, y: blockY + blockH - hSize - 5, w: hSize, h: hSize, doorX: ix+hSize/2, doorY: blockY+blockH-5, haloX: ix+hSize/2, haloY: blockY+blockH + 25, color: c2, roofColor: r2, rType: 'h' });
                         if(Math.random()>0.5) mapData.garages.push({ x: ix+hSize, y: blockY+blockH-65, w: 40, h: 60, dir: 'down' });
                     }
-
                     for(let iy = blockY + gap; iy < blockY + blockH - gap; iy += gap) {
                         let c3 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r3 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: blockX + 5, y: iy, w: hSize, h: hSize, doorX: blockX+5, doorY: iy+hSize/2, haloX: blockX - 25, haloY: iy+hSize/2, color: c3, roofColor: r3, rType: 'v' });
-                        
                         let c4 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r4 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: blockX + blockW - hSize - 5, y: iy, w: hSize, h: hSize, doorX: blockX+blockW-5, doorY: iy+hSize/2, haloX: blockX+blockW + 25, haloY: iy+hSize/2, color: c4, roofColor: r4, rType: 'v' });
                     }
-
-                    for(let t=0; t<5; t++) {
-                        mapData.trees.push({ x: blockX + 150 + Math.random()*(blockW-300), y: blockY + 150 + Math.random()*(blockH-300), r: 15 + Math.random()*15 });
-                    }
+                    for(let t=0; t<5; t++) { mapData.trees.push({ x: blockX + 150 + Math.random()*(blockW-300), y: blockY + 150 + Math.random()*(blockH-300), r: 15 + Math.random()*15 }); }
                 }
             }
-
-            for(let i=0; i<24; i++) {
+            // KI ANZAHL REDUZIERT AUF 16 (Guter Mittelweg)
+            const brandList = ['fedex', 'ups', 'amazon', 'dpd', 'gls'];
+            for(let i=0; i<16; i++) {
                 let onXAxis = i % 2 === 0; let line = gridSteps[Math.floor(Math.random() * gridSteps.length)];
                 let validSpawn = false; let aiX, aiY;
                 while(!validSpawn) {
@@ -234,144 +215,69 @@
                     aiX = onXAxis ? startPos : line + (dir > 0 ? 40 : -40); aiY = onXAxis ? line + (dir > 0 ? 40 : -40) : startPos;
                     if (Math.hypot(aiX - 0, aiY - (-40)) > 400) validSpawn = true;
                 }
+                let brand = brandList[Math.floor(Math.random() * brandList.length)];
+                let angle = onXAxis ? (aiX > 0 ? Math.PI : 0) : (aiY > 0 ? -Math.PI/2 : Math.PI/2);
                 competitors.push({
-                    x: aiX, y: aiY, 
-                    l: 90, w: 38,
-                    speed: 2 + Math.random(), 
-                    baseSpeed: 2 + Math.random(),
-                    dirX: onXAxis ? (aiX > 0 ? -1: 1) : 0, 
-                    dirY: onXAxis ? 0 : (aiY > 0 ? -1 : 1),
-                    angle: onXAxis ? (aiX > 0 ? Math.PI : 0) : (aiY > 0 ? -Math.PI/2 : Math.PI/2),
-                    brand: Math.random() < 0.5 ? 'fedex' : 'ups', 
-                    state: 'driving', 
-                    timer: 0
+                    id: Math.random(),
+                    x: aiX, y: aiY, l: 90, w: 38,
+                    speed: 2 + Math.random(), baseSpeed: 2 + Math.random(),
+                    dirX: onXAxis ? (aiX > 0 ? -1: 1) : 0, dirY: onXAxis ? 0 : (aiY > 0 ? -1 : 1),
+                    angle: angle, baseAngle: angle,
+                    brand: brand,
+                    dpdVar: (brand === 'dpd') ? (Math.random() < 0.5 ? 1 : 2) : 0,
+                    state: 'driving', timer: 0
                 });
             }
         }
 
         const gameState = { score: 0, isDelivering: false, brakingForMission: false, mission: null, lastMissionBId: null, floatingTexts: [], cooldown: 0 };
-        const MISSION_TYPES = [
-            { name: 'Brief', waitTime: 0, color: '#fff', icon: '✉️' },
-            { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '📦' },
-            { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '🟫' } 
-        ];
-        
-        // ZUSTELLER IST SCHNELLER (0.7)
+        const MISSION_TYPES = [ { name: 'Brief', waitTime: 0, color: '#fff', icon: '✉️' }, { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '📦' }, { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '🟫' } ];
         const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null, lastAngle: 0 };
 
         function spawnMission() {
-            let minD = 0; let maxD = 9999;
-            if(car.type === 'bike') { minD = 300; maxD = 1000; }
-            else if(car.type === 'scooter') { minD = 600; maxD = 1500; }
-            else if(car.type === 'transporter') { minD = 1200; maxD = 3000; }
-
-            let availableBuildings = mapData.buildings.filter(b => {
-                let d = Math.hypot(b.haloX - car.x, b.haloY - car.y);
-                return d >= minD && d <= maxD && b.id !== gameState.lastMissionBId;
-            });
+            let minD = 0, maxD = 9999;
+            if(car.type === 'bike') { minD = 300; maxD = 1000; } else if(car.type === 'scooter') { minD = 600; maxD = 1500; } else if(car.type === 'transporter') { minD = 1200; maxD = 3000; }
+            let availableBuildings = mapData.buildings.filter(b => { let d = Math.hypot(b.haloX - car.x, b.haloY - car.y); return d >= minD && d <= maxD && b.id !== gameState.lastMissionBId; });
             if (availableBuildings.length === 0) availableBuildings = mapData.buildings.filter(b => b.id !== gameState.lastMissionBId); 
-            
             let b = availableBuildings[Math.floor(Math.random() * availableBuildings.length)];
-            
             let availableMissions = [];
-            if(car.type === 'bike') availableMissions = MISSION_TYPES.filter(m => m.name !== 'Paket');
-            else if(car.type === 'transporter') availableMissions = MISSION_TYPES.filter(m => m.name !== 'Brief');
-            else availableMissions = MISSION_TYPES; 
-            
+            if(car.type === 'bike') availableMissions = MISSION_TYPES.filter(m => m.name !== 'Paket'); else if(car.type === 'transporter') availableMissions = MISSION_TYPES.filter(m => m.name !== 'Brief'); else availableMissions = MISSION_TYPES; 
             let type = availableMissions[Math.floor(Math.random() * availableMissions.length)];
-            
             gameState.mission = { bId: b.id, doorX: b.doorX, doorY: b.doorY, triggerX: b.haloX, triggerY: b.haloY, radius: 45, type: type, pulse: 0 };
             document.getElementById('missionInfo').innerText = `Ziel: ${type.name} ${type.icon}`;
             gameState.cooldown = 60;
         }
-        
         function showFloatingText(text, x, y) { gameState.floatingTexts.push({ text: text, x: x, y: y, life: 60 }); }
-
         function startGame(vehicleKey) {
-            let v = VEHICLES[vehicleKey];
-            car.l = v.l; car.w = v.w; car.maxSpeed = v.maxSpeed; car.displaySpeed = v.displaySpeed; 
-            car.acceleration = v.acceleration; car.braking = v.braking; car.maxSteer = v.maxSteer; 
-            car.offroadFriction = v.offroadFriction; car.type = v.type; car.name = v.name;
-            
-            initMapAndAI();
-            car.x = 0; car.y = -40; car.angle = 0; car.speed = 0; car.steeringAngle = 0;
-            gameState.score = 0; gameState.isDelivering = false; gameState.brakingForMission = false; gameState.cooldown = 0;
-            gameState.mission = null; gameState.lastMissionBId = null; postman.state = 'idle';
-            document.getElementById('scoreDisplay').innerText = `0`;
-            
-            document.getElementById('startScreen').style.display = 'none';
-            document.getElementById('ui').style.display = 'flex'; 
-            document.getElementById('restartBtn').style.display = 'block';
-            
-            if(isMobile) { document.getElementById('touchControllerContainer').style.display = 'block'; }
-            
+            let v = VEHICLES[vehicleKey]; car.l = v.l; car.w = v.w; car.maxSpeed = v.maxSpeed; car.displaySpeed = v.displaySpeed; car.acceleration = v.acceleration; car.braking = v.braking; car.maxSteer = v.maxSteer; car.offroadFriction = v.offroadFriction; car.type = v.type; car.name = v.name;
+            initMapAndAI(); car.x = 0; car.y = -40; car.angle = 0; car.speed = 0; car.steeringAngle = 0; gameState.score = 0; gameState.isDelivering = false; gameState.brakingForMission = false; gameState.cooldown = 0; gameState.mission = null; gameState.lastMissionBId = null; postman.state = 'idle'; document.getElementById('scoreDisplay').innerText = `0`; document.getElementById('startScreen').style.display = 'none'; document.getElementById('ui').style.display = 'flex'; document.getElementById('restartBtn').style.display = 'block';
+            if(isTouchDevice) { document.getElementById('touchControllerContainer').style.display = 'block'; }
             bgMusic.currentTime = 0; bgMusic.play().catch(e => console.log("Audio Play verweigert"));
             gameActive = true; spawnMission();
         }
-
         bgMusic.addEventListener('ended', endGame);
-
         function endGame() {
-            gameActive = false;
-            document.getElementById('ui').style.display = 'none'; document.getElementById('restartBtn').style.display = 'none';
-            document.getElementById('touchControllerContainer').style.display = 'none'; document.getElementById('signatureUI').style.display = 'none';
-            document.getElementById('keyboardPackageUI').style.display = 'none';
-            document.getElementById('gameOverScreen').style.display = 'flex';
-            document.getElementById('finalScoreDisplay').innerText = gameState.score;
-            document.getElementById('playerNameArea').style.display = 'block';
+            gameActive = false; document.getElementById('ui').style.display = 'none'; document.getElementById('restartBtn').style.display = 'none'; document.getElementById('touchControllerContainer').style.display = 'none'; document.getElementById('signatureUI').style.display = 'none'; document.getElementById('keyboardPackageUI').style.display = 'none'; document.getElementById('gameOverScreen').style.display = 'flex'; document.getElementById('finalScoreDisplay').innerText = gameState.score; document.getElementById('playerNameArea').style.display = 'block';
             renderLeaderboard();
         }
-
         function saveScore() {
-            let nameInput = document.getElementById('playerName');
-            let name = nameInput.value.trim() || "Anonymer Bote";
-            let lb = JSON.parse(localStorage.getItem('dhl_leaderboard') || "[]");
-            let entryDate = new Date();
-            let dateStr = entryDate.toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'}) + ', ' + entryDate.toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'});
-            lb.push({ name: name, score: gameState.score, vehicle: car.name, device: deviceType, date: dateStr });
-            lb.sort((a,b) => b.score - a.score); 
-            localStorage.setItem('dhl_leaderboard', JSON.stringify(lb));
-            document.getElementById('playerNameArea').style.display = 'none';
+            let nameInput = document.getElementById('playerName'); let name = nameInput.value.trim() || "Anonymer Bote"; let lb = JSON.parse(localStorage.getItem('dhl_leaderboard') || "[]"); let entryDate = new Date(); let dateStr = entryDate.toLocaleDateString('de-DE', {day: '2-digit', month: '2-digit', year: 'numeric'}) + ', ' + entryDate.toLocaleTimeString('de-DE', {hour: '2-digit', minute: '2-digit'});
+            lb.push({ name: name, score: gameState.score, vehicle: car.name, device: deviceType, date: dateStr }); lb.sort((a,b) => b.score - a.score); localStorage.setItem('dhl_leaderboard', JSON.stringify(lb)); document.getElementById('playerNameArea').style.display = 'none';
             renderLeaderboard();
         }
-
         function renderLeaderboard() {
-            let lb = JSON.parse(localStorage.getItem('dhl_leaderboard') || "[]");
-            let listHTML = "";
-            for(let i=0; i < Math.min(lb.length, 5); i++) {
-                listHTML += `<li><strong>${lb[i].score} Sendungen</strong> - ${lb[i].name} <br><span style="font-size:0.8em; color:#ccc;">${lb[i].date} | ${lb[i].vehicle} | ${lb[i].device}</span></li>`;
-            }
+            let lb = JSON.parse(localStorage.getItem('dhl_leaderboard') || "[]"); let listHTML = "";
+            for(let i=0; i < Math.min(lb.length, 5); i++) { listHTML += `<li><strong>${lb[i].score} Sendungen</strong> - ${lb[i].name} <br><span style="font-size:0.8em; color:#ccc;">${lb[i].date} | ${lb[i].vehicle} | ${lb[i].device}</span></li>`; }
             document.getElementById('leaderboardList').innerHTML = listHTML;
         }
-
         document.getElementById('recipientName').addEventListener('keypress', function (e) { if (e.key === 'Enter') confirmName(); });
-
-        function confirmName() {
-            if (postman.state !== 'typing') return;
-            let val = document.getElementById('recipientName').value.trim();
-            if(val.length < 3) { alert("Bitte mindestens 3 Buchstaben eingeben!"); return; }
-            document.getElementById('keyboardPackageUI').style.display = 'none';
-            successDelivery();
-        }
-
+        function confirmName() { if (postman.state !== 'typing') return; let val = document.getElementById('recipientName').value.trim(); if(val.length < 3) { alert("Bitte mindestens 3 Buchstaben eingeben!"); return; } document.getElementById('keyboardPackageUI').style.display = 'none'; successDelivery(); }
         const sigCanvas = document.getElementById('sigCanvas'); const sctx = sigCanvas.getContext('2d'); let isDrawing = false;
         sigCanvas.addEventListener('touchstart', e => { e.preventDefault(); let rect = sigCanvas.getBoundingClientRect(); let t = e.touches[0]; isDrawing = true; sctx.beginPath(); sctx.moveTo(t.clientX - rect.left, t.clientY - rect.top); }, {passive: false});
         sigCanvas.addEventListener('touchmove', e => { e.preventDefault(); if(isDrawing) { let rect = sigCanvas.getBoundingClientRect(); let t = e.touches[0]; sctx.lineTo(t.clientX - rect.left, t.clientY - rect.top); sctx.stroke(); }}, {passive: false});
         sigCanvas.addEventListener('touchend', e => { e.preventDefault(); isDrawing = false; }, {passive: false});
-
-        function confirmSignature() {
-            if (postman.state !== 'signing') return; 
-            document.getElementById('signatureUI').style.display = 'none'; sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
-            successDelivery();
-        }
-
-        function successDelivery() {
-            gameState.score++; document.getElementById('scoreDisplay').innerText = gameState.score;
-            showFloatingText('+1', postman.x, postman.y - 20);
-            postman.state = 'to_car'; postman.targetX = car.x; postman.targetY = car.y;
-            document.getElementById('missionInfo').innerText = "Rückweg zum Fahrzeug...";
-        }
-
+        function confirmSignature() { if (postman.state !== 'signing') return; document.getElementById('signatureUI').style.display = 'none'; sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); successDelivery(); }
+        function successDelivery() { gameState.score++; document.getElementById('scoreDisplay').innerText = gameState.score; showFloatingText('+1', postman.x, postman.y - 20); postman.state = 'to_car'; postman.targetX = car.x; postman.targetY = car.y; document.getElementById('missionInfo').innerText = "Rückweg zum Fahrzeug..."; }
         function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
         function rectDist(cx, cy, rx, ry, rw, rh) { let testX = clamp(cx, rx, rx + rw); let testY = clamp(cy, ry, ry + rh); let dx = cx - testX; let dy = cy - testY; return Math.sqrt(dx*dx + dy*dy); }
 
@@ -384,329 +290,165 @@
             return {hit: false};
         }
 
+        // NEU: KI-KOLLISIONSPRÜFUNG (Damit sie nicht ineinander fahren)
+        function checkAICollision(ai, nextX, nextY) {
+            let radius = ai.w/2;
+            for(let other of competitors) {
+                if(other.id === ai.id) continue;
+                if(Math.hypot(nextX - other.x, nextY - other.y) < (radius + other.w/2 + 10)) return true; // Zu nah an anderem KI-Auto
+            }
+            if(Math.hypot(nextX - car.x, nextY - car.y) < (radius + car.w/2 + 10)) return true; // Zu nah am Spieler
+            return false;
+        }
+
         function getTerrainFriction(x, y) {
             for(let r of mapData.roads) if(x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return 0.96;
             for(let g of mapData.garages) if(x > g.x && x < g.x + g.w && y > g.y && y < g.y + g.h) return 0.96; 
-            for(let s of mapData.sidewalks) if(x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h) {
-                return (car.type === 'bike') ? 0.96 : 0.85; 
-            }
+            for(let s of mapData.sidewalks) if(x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h) { return (car.type === 'bike') ? 0.96 : 0.85; }
             return car.offroadFriction; 
         }
 
         const inputs = { fwd: false, rev: false, left: false, right: false };
         function drawTouchController(activeSector) {
-            cctx.clearRect(0, 0, ctrlCanvas.width, ctrlCanvas.height);
-            let cx = ctrlCanvas.width/2; let cy = ctrlCanvas.height/2;
+            cctx.clearRect(0, 0, ctrlCanvas.width, ctrlCanvas.height); let cx = ctrlCanvas.width/2; let cy = ctrlCanvas.height/2;
             cctx.strokeStyle = 'rgba(255,255,255,0.2)'; cctx.lineWidth = 2; cctx.beginPath(); cctx.moveTo(0, cy); cctx.lineTo(ctrlCanvas.width, cy); cctx.stroke();
-
             function fillSect(start, end, isActive) { if(!isActive) return; cctx.beginPath(); cctx.moveTo(cx, cy); cctx.arc(cx, cy, cx, start, end); cctx.lineTo(cx, cy); cctx.fillStyle = 'rgba(255, 204, 0, 0.4)'; cctx.fill(); }
-            fillSect(Math.PI, 4*Math.PI/3, activeSector===0); fillSect(4*Math.PI/3, 5*Math.PI/3, activeSector===1); fillSect(5*Math.PI/3, 2*Math.PI, activeSector===2);
-            fillSect(0, Math.PI/3, activeSector===3); fillSect(Math.PI/3, 2*Math.PI/3, activeSector===4); fillSect(2*Math.PI/3, Math.PI, activeSector===5);
-
+            fillSect(Math.PI, 4*Math.PI/3, activeSector===0); fillSect(4*Math.PI/3, 5*Math.PI/3, activeSector===1); fillSect(5*Math.PI/3, 2*Math.PI, activeSector===2); fillSect(0, Math.PI/3, activeSector===3); fillSect(Math.PI/3, 2*Math.PI/3, activeSector===4); fillSect(2*Math.PI/3, Math.PI, activeSector===5);
             cctx.strokeStyle = '#fff'; cctx.lineWidth = 4; cctx.lineCap = 'round'; cctx.lineJoin = 'round';
-            function drawArr(px, py, rot, type) {
-                cctx.save(); cctx.translate(cx + px, cy + py); cctx.rotate(rot); cctx.beginPath();
-                if(type === 'straight') { cctx.moveTo(0, 15); cctx.lineTo(0, -15); cctx.moveTo(-8, -7); cctx.lineTo(0, -15); cctx.lineTo(8, -7); } 
-                else if (type === 'cL') { cctx.arc(10, 10, 15, Math.PI, 1.5*Math.PI); cctx.moveTo(10, -5); cctx.lineTo(-5, -5); cctx.lineTo(-5, 10); } 
-                else if (type === 'cR') { cctx.arc(-10, 10, 15, 1.5*Math.PI, 2*Math.PI); cctx.moveTo(5, 10); cctx.lineTo(5, -5); cctx.lineTo(-10, -5); }
-                cctx.stroke(); cctx.restore();
-            }
-            drawArr(-45, -45, 0, 'cL'); drawArr(0, -60, 0, 'straight'); drawArr(45, -45, 0, 'cR');    
-            drawArr(45, 45, Math.PI, 'cL'); drawArr(0, 60, Math.PI, 'straight'); drawArr(-45, 45, Math.PI, 'cR');  
-            cctx.beginPath(); cctx.arc(cx, cy, cx - 2, 0, Math.PI*2); cctx.stroke();
+            function drawArr(px, py, rot, type) { cctx.save(); cctx.translate(cx + px, cy + py); cctx.rotate(rot); cctx.beginPath(); if(type === 'straight') { cctx.moveTo(0, 15); cctx.lineTo(0, -15); cctx.moveTo(-8, -7); cctx.lineTo(0, -15); cctx.lineTo(8, -7); } else if (type === 'cL') { cctx.arc(10, 10, 15, Math.PI, 1.5*Math.PI); cctx.moveTo(10, -5); cctx.lineTo(-5, -5); cctx.lineTo(-5, 10); } else if (type === 'cR') { cctx.arc(-10, 10, 15, 1.5*Math.PI, 2*Math.PI); cctx.moveTo(5, 10); cctx.lineTo(5, -5); cctx.lineTo(-10, -5); } cctx.stroke(); cctx.restore(); }
+            drawArr(-45, -45, 0, 'cL'); drawArr(0, -60, 0, 'straight'); drawArr(45, -45, 0, 'cR'); drawArr(45, 45, Math.PI, 'cL'); drawArr(0, 60, Math.PI, 'straight'); drawArr(-45, 45, Math.PI, 'cR'); cctx.beginPath(); cctx.arc(cx, cy, cx - 2, 0, Math.PI*2); cctx.stroke();
         }
         drawTouchController(-1);
-
         const ctrlContainer = document.getElementById('touchControllerContainer');
-        function handleTouch(e) {
-            e.preventDefault(); deviceType = 'Handy'; 
-            if(gameActive && document.getElementById('touchControllerContainer').style.display === 'none') { document.getElementById('touchControllerContainer').style.display = 'block'; }
-            if (e.touches.length === 0 || gameState.brakingForMission || gameState.isDelivering || !gameActive) { inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1); return; }
-            let rect = ctrlContainer.getBoundingClientRect(); let t = e.touches[0];
-            if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) {
-                let dx = t.clientX - (rect.left + rect.width/2); let dy = t.clientY - (rect.top + rect.height/2);
-                let angle = Math.atan2(dy, dx); if (angle < 0) angle += 2 * Math.PI;
-                inputs.fwd = inputs.rev = inputs.left = inputs.right = false; let s = -1;
-                if (angle >= Math.PI && angle < 4*Math.PI/3) { s = 0; inputs.fwd = true; inputs.left = true; }
-                else if (angle >= 4*Math.PI/3 && angle < 5*Math.PI/3) { s = 1; inputs.fwd = true; }
-                else if (angle >= 5*Math.PI/3 && angle <= 2*Math.PI) { s = 2; inputs.fwd = true; inputs.right = true; }
-                else if (angle >= 0 && angle < Math.PI/3) { s = 3; inputs.rev = true; inputs.right = true; }
-                else if (angle >= Math.PI/3 && angle < 2*Math.PI/3) { s = 4; inputs.rev = true; }
-                else if (angle >= 2*Math.PI/3 && angle < Math.PI) { s = 5; inputs.rev = true; inputs.left = true; }
-                drawTouchController(s);
-            }
-        }
-        ctrlContainer.addEventListener('touchstart', handleTouch, {passive: false}); ctrlContainer.addEventListener('touchmove', handleTouch, {passive: false});
-        ctrlContainer.addEventListener('touchend', () => { inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1); });
-
-        window.addEventListener('keydown', e => { 
-            deviceType = 'PC'; 
-            if(gameActive) document.getElementById('touchControllerContainer').style.display = 'none'; 
-            if(!gameState.brakingForMission && !gameState.isDelivering && gameActive) { 
-                if(e.key === 'ArrowUp') inputs.fwd = true; if(e.key === 'ArrowDown') inputs.rev = true; if(e.key === 'ArrowLeft') inputs.left = true; if(e.key === 'ArrowRight') inputs.right = true; 
-            }
-        });
+        function handleTouch(e) { e.preventDefault(); deviceType = 'Handy'; if(gameActive && document.getElementById('touchControllerContainer').style.display === 'none') { document.getElementById('touchControllerContainer').style.display = 'block'; } if (e.touches.length === 0 || gameState.brakingForMission || gameState.isDelivering || !gameActive) { inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1); return; } let rect = ctrlContainer.getBoundingClientRect(); let t = e.touches[0]; if (t.clientX >= rect.left && t.clientX <= rect.right && t.clientY >= rect.top && t.clientY <= rect.bottom) { let dx = t.clientX - (rect.left + rect.width/2); let dy = t.clientY - (rect.top + rect.height/2); let angle = Math.atan2(dy, dx); if (angle < 0) angle += 2 * Math.PI; inputs.fwd = inputs.rev = inputs.left = inputs.right = false; let s = -1; if (angle >= Math.PI && angle < 4*Math.PI/3) { s = 0; inputs.fwd = true; inputs.left = true; } else if (angle >= 4*Math.PI/3 && angle < 5*Math.PI/3) { s = 1; inputs.fwd = true; } else if (angle >= 5*Math.PI/3 && angle <= 2*Math.PI) { s = 2; inputs.fwd = true; inputs.right = true; } else if (angle >= 0 && angle < Math.PI/3) { s = 3; inputs.rev = true; inputs.right = true; } else if (angle >= Math.PI/3 && angle < 2*Math.PI/3) { s = 4; inputs.rev = true; } else if (angle >= 2*Math.PI/3 && angle < Math.PI) { s = 5; inputs.rev = true; inputs.left = true; } drawTouchController(s); } }
+        ctrlContainer.addEventListener('touchstart', handleTouch, {passive: false}); ctrlContainer.addEventListener('touchmove', handleTouch, {passive: false}); ctrlContainer.addEventListener('touchend', () => { inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1); });
+        window.addEventListener('keydown', e => { deviceType = 'PC'; if(gameActive) document.getElementById('touchControllerContainer').style.display = 'none'; if(!gameState.brakingForMission && !gameState.isDelivering && gameActive) { if(e.key === 'ArrowUp') inputs.fwd = true; if(e.key === 'ArrowDown') inputs.rev = true; if(e.key === 'ArrowLeft') inputs.left = true; if(e.key === 'ArrowRight') inputs.right = true; } });
         window.addEventListener('keyup', e => { if(e.key === 'ArrowUp') inputs.fwd = false; if(e.key === 'ArrowDown') inputs.rev = false; if(e.key === 'ArrowLeft') inputs.left = false; if(e.key === 'ArrowRight') inputs.right = false; });
 
         // --- GAME LOOP ---
         function update() {
             if(!gameActive) return;
             frameCount++;
+            if(!bgMusic.paused && bgMusic.duration > 0) { let timeLeft = Math.max(0, bgMusic.duration - bgMusic.currentTime); let mins = Math.floor(timeLeft / 60); let secs = Math.floor(timeLeft % 60).toString().padStart(2, '0'); document.getElementById('timerDisplay').innerText = `⏱️ ${mins}:${secs}`; }
 
-            if(!bgMusic.paused && bgMusic.duration > 0) {
-                let timeLeft = Math.max(0, bgMusic.duration - bgMusic.currentTime);
-                let mins = Math.floor(timeLeft / 60); let secs = Math.floor(timeLeft % 60).toString().padStart(2, '0');
-                document.getElementById('timerDisplay').innerText = `⏱️ ${mins}:${secs}`;
-            }
-
+            // --- KI FAHRVERHALTEN UPDATE ---
             for(let c of competitors) {
                 let dToPlayer = Math.hypot(c.x - car.x, c.y - car.y);
                 let playerParked = (car.speed < 0.1 || gameState.brakingForMission || gameState.isDelivering);
+                
+                // Aggressions-Check (Wie gehabt)
                 if (playerParked && dToPlayer < (car.l/2 + c.l/2 + 20)) {
-                    let dx = car.x - c.x; let dy = car.y - c.y;
-                    let angleToPlayer = Math.atan2(dy, dx);
-                    let diffAngle = Math.abs(c.angle - angleToPlayer);
-                    if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
-                    if (diffAngle < Math.PI/2) { c.state = 'stopped'; c.timer = 10; c.speed = 0; c.preventAttacking = true; }
+                    let dx = car.x - c.x, dy = car.y - c.y; let angleToPlayer = Math.atan2(dy, dx); let diffAngle = Math.abs(c.angle - angleToPlayer); if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
+                    if (diffAngle < Math.PI/2) { if(c.state !== 'stopped_reckless') { c.state = 'stopped'; c.timer = 10; c.speed = 0; c.preventAttacking = true; } }
                 } else { c.preventAttacking = false; }
 
                 if(c.state === 'driving') {
-                    c.x += c.dirX * c.speed; c.y += c.dirY * c.speed;
-                    if(Math.abs(c.x) > 2400) { c.dirX *= -1; c.angle += Math.PI; }
-                    if(Math.abs(c.y) > 2400) { c.dirY *= -1; c.angle += Math.PI; }
+                    // Kollisionsprüfung mit anderen KIs VOR dem Bewegen
+                    let nextX = c.x + c.dirX * c.speed;
+                    let nextY = c.y + c.dirY * c.speed;
+                    
+                    if(!checkAICollision(c, nextX, nextY)) {
+                        c.x = nextX; c.y = nextY;
+                    } else {
+                        // Wenn Kollision droht: Anhalten und warten
+                        c.speed = 0; c.state = 'stopped'; c.timer = 50 + Math.random()*100; // Kurz warten
+                    }
+
+                    // Kartenrand-Prüfung
+                    if(Math.abs(c.x) > 2400) { c.dirX *= -1; c.angle += Math.PI; c.baseAngle = c.angle; }
+                    if(Math.abs(c.y) > 2400) { c.dirY *= -1; c.angle += Math.PI; c.baseAngle = c.angle; }
+                    
+                    // Zustandswechsel
                     if(dToPlayer < 150 && !c.preventAttacking && Math.random() < 0.005) { c.state = 'attacking'; showFloatingText("Hey!", c.x, c.y - 20); }
-                    if(Math.random() < 0.001) { c.state = 'stopped'; c.timer = 150 + Math.random()*200; c.speed = 0; }
-                } else if(c.state === 'stopped') {
-                    c.timer--; if(c.timer <= 0) { c.state = 'driving'; c.speed = c.baseSpeed; }
+                    
+                    // Zufälliges Parken (RECKLESS PARKED)
+                    if(Math.random() < 0.0005) { // Sehr geringe Chance pro Frame
+                        c.state = 'stopped_reckless';
+                        c.timer = 500 + Math.random()*1500; // Lange parken
+                        c.speed = 0;
+                        // Schräg parken (Zufallswinkel)
+                        c.angle = c.baseAngle + (Math.random() - 0.5) * Math.PI * 0.6; // Bis zu +-54 Grad schräg
+                        
+                        // Teilweise auf Gehweg / Mittelstreifen schieben
+                        if(Math.random() < 0.7) { // 70% Chance nicht perfekt auf Straße
+                            let drift = 20 + Math.random()*40;
+                            // Drift senkrecht zur Fahrtrichtung
+                            if(c.dirX !== 0) c.y += (Math.random()>0.5?1:-1) * drift;
+                            else c.x += (Math.random()>0.5?1:-1) * drift;
+                        }
+                    } else if(Math.random() < 0.001) { 
+                        // Normales kurzes Stoppen (Zentriert)
+                        c.state = 'stopped'; c.timer = 150 + Math.random()*200; c.speed = 0; 
+                    }
+                } else if(c.state === 'stopped' || c.state === 'stopped_reckless') {
+                    c.timer--;
+                    if(c.timer <= 0) {
+                        c.state = 'driving'; c.speed = c.baseSpeed;
+                        c.angle = c.baseAngle; // Winkel zurücksetzen
+                    }
                 } else if(c.state === 'attacking') {
-                    c.speed = 0; if(dToPlayer > 150 || c.preventAttacking) { c.state = 'driving'; c.speed = c.baseSpeed; } 
-                    else if(frameCount % 40 === 0) {
-                        let angle = Math.atan2(car.y - c.y, car.x - c.x);
-                        projectiles.push({ x: c.x, y: c.y, z: 10, vx: Math.cos(angle)*2.5, vy: Math.sin(angle)*2.5, vz: 2, life: 40 }); 
-                    }
+                    c.speed = 0;
+                    if(dToPlayer > 150 || c.preventAttacking) { c.state = 'driving'; c.speed = c.baseSpeed; } 
+                    else if(frameCount % 40 === 0) { let angle = Math.atan2(car.y - c.y, car.x - c.x); projectiles.push({ x: c.x, y: c.y, z: 10, vx: Math.cos(angle)*2.5, vy: Math.sin(angle)*2.5, vz: 2, life: 40 }); }
                 }
             }
 
-            for(let i = projectiles.length-1; i>=0; i--) {
-                let p = projectiles[i]; p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vz -= 0.2; p.life--;
-                if(Math.hypot(car.x - p.x, car.y - p.y) < car.w/2 + 10 && p.z < 20) {
-                    car.speed *= 0.6; showFloatingText("💥 Treffer!", car.x, car.y - 30); projectiles.splice(i, 1);
-                } else if(p.life <= 0) projectiles.splice(i, 1);
-            }
-
+            for(let i = projectiles.length-1; i>=0; i--) { let p = projectiles[i]; p.x += p.vx; p.y += p.vy; p.z += p.vz; p.vz -= 0.2; p.life--; if(Math.hypot(car.x - p.x, car.y - p.y) < car.w/2 + 10 && p.z < 20) { car.speed *= 0.6; showFloatingText("💥 Treffer!", car.x, car.y - 30); projectiles.splice(i, 1); } else if(p.life <= 0) projectiles.splice(i, 1); }
             if (gameState.cooldown > 0) gameState.cooldown--;
-
-            if (gameState.isDelivering) {
-                inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0;
-                let dx = postman.targetX - postman.x; let dy = postman.targetY - postman.y; let dist = Math.hypot(dx, dy);
-
-                if (postman.state === 'to_door') {
-                    if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
-                    else { 
-                        if(postman.type.name === 'Brief') { successDelivery(); } 
-                        else { postman.state = 'waiting'; document.getElementById('missionInfo').innerText = "Zustellung..."; }
-                    }
-                } else if (postman.state === 'waiting') {
-                    postman.waitTimer--;
-                    if (postman.waitTimer <= 0) {
-                        if(postman.type.name === 'Paket') {
-                            if(deviceType === 'Handy') { postman.state = 'signing'; document.getElementById('signatureUI').style.display = 'block'; sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); } 
-                            else { postman.state = 'typing'; document.getElementById('keyboardPackageUI').style.display = 'block'; document.getElementById('recipientName').value = ''; document.getElementById('recipientName').focus(); }
-                        } else { successDelivery(); }
-                    }
-                } else if (postman.state === 'to_car') {
-                    postman.targetX = car.x; postman.targetY = car.y; 
-                    dx = postman.targetX - postman.x; dy = postman.targetY - postman.y; dist = Math.hypot(dx, dy);
-                    if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
-                    else { postman.state = 'idle'; gameState.isDelivering = false; spawnMission(); }
-                }
-            } else {
-                car.currentFriction = getTerrainFriction(car.x, car.y);
-                if (gameState.brakingForMission) {
-                    inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1);
-                    let brakeForce = car.braking * 0.4;
-                    if (car.speed > 0.05) { car.speed -= brakeForce; if(car.speed < 0) car.speed = 0; } 
-                    else if (car.speed < -0.05) { car.speed += brakeForce; if(car.speed > 0) car.speed = 0; } 
-                    else { car.speed = 0; }
-                    if (car.speed === 0) {
-                        gameState.brakingForMission = false; gameState.isDelivering = true;
-                        postman.x = car.x; postman.y = car.y; postman.targetX = gameState.mission.doorX; postman.targetY = gameState.mission.doorY;
-                        postman.type = gameState.mission.type; postman.waitTimer = gameState.mission.type.waitTime; postman.state = 'to_door';
-                        gameState.lastMissionBId = gameState.mission.bId; gameState.mission = null; 
-                    }
-                } else {
-                    if (inputs.fwd) { car.speed += car.acceleration; } else if (inputs.rev) { car.speed -= car.acceleration; } else { car.speed *= car.currentFriction; }
-                }
-                car.speed = Math.max(-car.maxSpeed/2, Math.min(car.maxSpeed, car.speed));
-                if(Math.abs(car.speed) < 0.05) car.speed = 0; 
-                
-                // LENKEN im Stand möglich (Anti-Stuck)
-                if (Math.abs(car.speed) > 0.05) {
-                    let targetSteer = 0; if (inputs.left) targetSteer = -car.maxSteer; if (inputs.right) targetSteer = car.maxSteer;
-                    car.steeringAngle += (targetSteer - car.steeringAngle) * 0.15; 
-                    let dir = car.speed > 0 ? 1 : -1; car.angle += car.steeringAngle * dir * (Math.abs(car.speed) / car.maxSpeed);
-                } else if (Math.abs(car.speed) < 0.1 && (inputs.left || inputs.right)) {
-                    let dir = inputs.right ? 1 : -1; car.angle += dir * car.maxSteer * 0.5;
-                } else { car.steeringAngle *= 0.8; }
-
-                let nextX = car.x + Math.cos(car.angle) * car.speed; let nextY = car.y + Math.sin(car.angle) * car.speed;
-
-                let col = checkCollision(nextX, nextY);
-                if (col.hit) {
-                    if (col.ai && car.type === 'transporter') { car.speed *= 0.7; col.ai.x += Math.cos(car.angle) * Math.abs(car.speed) * 1.5; col.ai.y += Math.sin(car.angle) * Math.abs(car.speed) * 1.5; car.x = nextX; car.y = nextY; col.ai.state = 'attacking'; showFloatingText("RUMMS!", col.ai.x, col.ai.y - 20); } 
-                    else { 
-                        car.speed *= 0.2; 
-                        let canMoveX = !checkCollision(nextX, car.y).hit; let canMoveY = !checkCollision(car.x, nextY).hit; 
-                        if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
-                        // WAND ABPRALLEN (Anti-Stuck)
-                        if(!canMoveX && !canMoveY) { 
-                            if(col.ai) { let pushAngle = Math.atan2(car.y - col.ai.y, car.x - col.ai.x); car.x += Math.cos(pushAngle) * 1.5; car.y += Math.sin(pushAngle) * 1.5; col.ai.state = 'attacking'; showFloatingText("Hey!", col.ai.x, col.ai.y - 20); } 
-                            else { car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 1.5 : -1.5); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 1.5 : -1.5); }
-                        } 
-                    }
-                } else { car.x = nextX; car.y = nextY; }
-
+            if (gameState.isDelivering) { inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0; let dx = postman.targetX - postman.x, dy = postman.targetY - postman.y; let dist = Math.hypot(dx, dy); if (postman.state === 'to_door') { if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } else { if(postman.type.name === 'Brief') { successDelivery(); } else { postman.state = 'waiting'; document.getElementById('missionInfo').innerText = "Zustellung..."; } } } else if (postman.state === 'waiting') { postman.waitTimer--; if (postman.waitTimer <= 0) { if(postman.type.name === 'Paket') { if(deviceType === 'Handy') { postman.state = 'signing'; document.getElementById('signatureUI').style.display = 'block'; sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); } else { postman.state = 'typing'; document.getElementById('keyboardPackageUI').style.display = 'block'; document.getElementById('recipientName').value = ''; document.getElementById('recipientName').focus(); } } else { successDelivery(); } } } else if (postman.state === 'to_car') { postman.targetX = car.x; postman.targetY = car.y; dx = postman.targetX - postman.x; dy = postman.targetY - postman.y; dist = Math.hypot(dx, dy); if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } else { postman.state = 'idle'; gameState.isDelivering = false; spawnMission(); } } } else {
+                car.currentFriction = getTerrainFriction(car.x, car.y); if (gameState.brakingForMission) { inputs.fwd = inputs.rev = inputs.left = inputs.right = false; drawTouchController(-1); let brakeForce = car.braking * 0.4; if (car.speed > 0.05) { car.speed -= brakeForce; if(car.speed < 0) car.speed = 0; } else if (car.speed < -0.05) { car.speed += brakeForce; if(car.speed > 0) car.speed = 0; } else { car.speed = 0; } if (car.speed === 0) { gameState.brakingForMission = false; gameState.isDelivering = true; postman.x = car.x; postman.y = car.y; postman.targetX = gameState.mission.doorX; postman.targetY = gameState.mission.doorY; postman.type = gameState.mission.type; postman.waitTimer = gameState.mission.type.waitTime; postman.state = 'to_door'; gameState.lastMissionBId = gameState.mission.bId; gameState.mission = null; } } else { if (inputs.fwd) { car.speed += car.acceleration; } else if (inputs.rev) { car.speed -= car.acceleration; } else { car.speed *= car.currentFriction; } } car.speed = Math.max(-car.maxSpeed/2, Math.min(car.maxSpeed, car.speed)); if(Math.abs(car.speed) < 0.05) car.speed = 0; if (Math.abs(car.speed) > 0.05) { let targetSteer = 0; if (inputs.left) targetSteer = -car.maxSteer; if (inputs.right) targetSteer = car.maxSteer; car.steeringAngle += (targetSteer - car.steeringAngle) * 0.15; let dir = car.speed > 0 ? 1 : -1; car.angle += car.steeringAngle * dir * (Math.abs(car.speed) / car.maxSpeed); } else if (Math.abs(car.speed) < 0.1 && (inputs.left || inputs.right)) { let dir = inputs.right ? 1 : -1; car.angle += dir * car.maxSteer * 0.5; } else { car.steeringAngle *= 0.8; }
+                let nextX = car.x + Math.cos(car.angle) * car.speed, nextY = car.y + Math.sin(car.angle) * car.speed; let col = checkCollision(nextX, nextY); if (col.hit) { if (col.ai && car.type === 'transporter') { car.speed *= 0.7; col.ai.x += Math.cos(car.angle) * Math.abs(car.speed) * 1.5; col.ai.y += Math.sin(car.angle) * Math.abs(car.speed) * 1.5; car.x = nextX; car.y = nextY; col.ai.state = 'attacking'; showFloatingText("RUMMS!", col.ai.x, col.ai.y - 20); } else { car.speed *= 0.2; let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; if(!canMoveX && !canMoveY) { if(col.ai) { let pushAngle = Math.atan2(car.y - col.ai.y, car.x - col.ai.x); car.x += Math.cos(pushAngle) * 1.5; car.y += Math.sin(pushAngle) * 1.5; col.ai.state = 'attacking'; showFloatingText("Hey!", col.ai.x, col.ai.y - 20); } else { car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 1.5 : -1.5); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 1.5 : -1.5); } } } } else { car.x = nextX; car.y = nextY; }
                 if (gameState.mission && !gameState.brakingForMission && gameState.cooldown <= 0) { gameState.mission.pulse += 0.05; let m = gameState.mission; if (Math.hypot(car.x - m.triggerX, car.y - m.triggerY) < m.radius + (Math.max(car.l, car.w) / 2)) gameState.brakingForMission = true; }
             }
-            let displayedSpeed = Math.round((Math.abs(car.speed) / car.maxSpeed) * car.displaySpeed);
-            document.getElementById('speedo').innerText = displayedSpeed + ' km/h';
-            for(let i = gameState.floatingTexts.length - 1; i >= 0; i--) { let ft = gameState.floatingTexts[i]; ft.y -= 1; ft.life--; if(ft.life <= 0) gameState.floatingTexts.splice(i, 1); }
+            let displayedSpeed = Math.round((Math.abs(car.speed) / car.maxSpeed) * car.displaySpeed); document.getElementById('speedo').innerText = displayedSpeed + ' km/h'; for(let i = gameState.floatingTexts.length - 1; i >= 0; i--) { let ft = gameState.floatingTexts[i]; ft.y -= 1; ft.life--; if(ft.life <= 0) gameState.floatingTexts.splice(i, 1); }
         }
 
         // --- ZEICHNEN ---
         function draw() {
-            ctx.fillStyle = '#4caf50'; ctx.fillRect(0, 0, canvas.width, canvas.height); 
-            if(!gameActive) return;
-            ctx.save(); ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y); 
-            ctx.fillStyle = '#9e9e9e'; for(let s of mapData.sidewalks) ctx.fillRect(s.x, s.y, s.w, s.h);
-            ctx.fillStyle = '#4caf50'; for(let s of mapData.sidewalks) ctx.fillRect(s.x+30, s.y+30, s.w-60, s.h-60);
-            ctx.fillStyle = '#555'; for (let r of mapData.roads) ctx.fillRect(r.x, r.y, r.w, r.h);
-            ctx.strokeStyle = '#555'; ctx.lineWidth = roadW; ctx.lineCap = 'butt'; for (let c of mapData.curves) { ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r, c.start, c.end); ctx.stroke(); }
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.setLineDash([30, 30]); for (let r of mapData.roads) { ctx.beginPath(); if (r.w > r.h) { ctx.moveTo(r.x, r.y + r.h/2); ctx.lineTo(r.x + r.w, r.y + r.h/2); } else { ctx.moveTo(r.x + r.w/2, r.y); ctx.lineTo(r.x + r.w/2, r.y + r.h); } ctx.stroke(); }
-            ctx.setLineDash([]);
-            ctx.fillStyle = '#6d4c41'; for (let f of mapData.fences) ctx.fillRect(f.x, f.y, f.w, f.h);
-            for (let g of mapData.garages) { ctx.fillStyle = '#757575'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#424242'; ctx.lineWidth=2; ctx.strokeRect(g.x, g.y, g.w, g.h); ctx.fillStyle = '#9e9e9e'; if(g.dir === 'up') ctx.fillRect(g.x+5, g.y-20, g.w-10, 20); else ctx.fillRect(g.x+5, g.y+g.h, g.w-10, 20); }
-            for (let b of mapData.buildings) {
-                ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(b.x + 8, b.y + 12, b.w, b.h); 
-                ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h); 
-                
-                ctx.fillStyle = b.roofColor;
-                if(b.rType === 'h') {
-                    ctx.fillRect(b.x-5, b.y-5, b.w+10, b.h/2+5); 
-                    ctx.fillStyle = 'rgba(0,0,0,0.15)'; 
-                    ctx.fillRect(b.x-5, b.y+b.h/2, b.w+10, b.h/2+5);
-                    ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x-5, b.y+b.h/2); ctx.lineTo(b.x+b.w+5, b.y+b.h/2); ctx.stroke(); 
-                } else {
-                    ctx.fillRect(b.x-5, b.y-5, b.w/2+5, b.h+10); 
-                    ctx.fillStyle = 'rgba(0,0,0,0.15)'; 
-                    ctx.fillRect(b.x+b.w/2, b.y-5, b.w/2+5, b.h+10);
-                    ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x+b.w/2, b.y-5); ctx.lineTo(b.x+b.w/2, b.y+b.h+5); ctx.stroke(); 
-                }
-                
-                ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 8, b.doorY - 8, 16, 16); 
-            }
+            ctx.fillStyle = '#4caf50'; ctx.fillRect(0, 0, canvas.width, canvas.height); if(!gameActive) return;
+            ctx.save(); ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y); ctx.fillStyle = '#9e9e9e'; for(let s of mapData.sidewalks) ctx.fillRect(s.x, s.y, s.w, s.h); ctx.fillStyle = '#4caf50'; for(let s of mapData.sidewalks) ctx.fillRect(s.x+30, s.y+30, s.w-60, s.h-60); ctx.fillStyle = '#555'; for (let r of mapData.roads) ctx.fillRect(r.x, r.y, r.w, r.h); ctx.strokeStyle = '#555'; ctx.lineWidth = roadW; ctx.lineCap = 'butt'; for (let c of mapData.curves) { ctx.beginPath(); ctx.arc(c.cx, c.cy, c.r, c.start, c.end); ctx.stroke(); } ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.setLineDash([30, 30]); for (let r of mapData.roads) { ctx.beginPath(); if (r.w > r.h) { ctx.moveTo(r.x, r.y + r.h/2); ctx.lineTo(r.x + r.w, r.y + r.h/2); } else { ctx.moveTo(r.x + r.w/2, r.y); ctx.lineTo(r.x + r.w/2, r.y + r.h); } ctx.stroke(); } ctx.setLineDash([]); ctx.fillStyle = '#6d4c41'; for (let f of mapData.fences) ctx.fillRect(f.x, f.y, f.w, f.h); for (let g of mapData.garages) { ctx.fillStyle = '#757575'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#424242'; ctx.lineWidth=2; ctx.strokeRect(g.x, g.y, g.w, g.h); ctx.fillStyle = '#9e9e9e'; if(g.dir === 'up') ctx.fillRect(g.x+5, g.y-20, g.w-10, 20); else ctx.fillRect(g.x+5, g.y+g.h, g.w-10, 20); }
+            for (let b of mapData.buildings) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(b.x + 8, b.y + 12, b.w, b.h); ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.fillStyle = b.roofColor; if(b.rType === 'h') { ctx.fillRect(b.x-5, b.y-5, b.w+10, b.h/2+5); ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(b.x-5, b.y+b.h/2, b.w+10, b.h/2+5); ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x-5, b.y+b.h/2); ctx.lineTo(b.x+b.w+5, b.y+b.h/2); ctx.stroke(); } else { ctx.fillRect(b.x-5, b.y-5, b.w/2+5, b.h+10); ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(b.x+b.w/2, b.y-5, b.w/2+5, b.h+10); ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x+b.w/2, b.y-5); ctx.lineTo(b.x+b.w/2, b.y+b.h+5); ctx.stroke(); } ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 8, b.doorY - 8, 16, 16); }
             for (let t of mapData.trees) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(t.x+5, t.y+5, t.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill(); }
-            if (gameState.mission && !gameState.isDelivering) {
-                let m = gameState.mission;
-                ctx.beginPath(); ctx.arc(m.triggerX, m.triggerY, m.radius + Math.sin(m.pulse) * 5, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(255, 204, 0, ${gameState.brakingForMission ? 0.6 : 0.3})`; ctx.fill(); ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(m.triggerX, m.triggerY); ctx.lineTo(m.doorX, m.doorY); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]);
-                ctx.fillStyle = '#fff'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(m.type.icon, m.triggerX, m.triggerY);
-            }
+            if (gameState.mission && !gameState.isDelivering) { let m = gameState.mission; ctx.beginPath(); ctx.arc(m.triggerX, m.triggerY, m.radius + Math.sin(m.pulse) * 5, 0, Math.PI * 2); ctx.fillStyle = `rgba(255, 204, 0, ${gameState.brakingForMission ? 0.6 : 0.3})`; ctx.fill(); ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.stroke(); ctx.beginPath(); ctx.moveTo(m.triggerX, m.triggerY); ctx.lineTo(m.doorX, m.doorY); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = '#fff'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(m.type.icon, m.triggerX, m.triggerY); }
 
+            // --- KONKURRENZ (ALLE MARKEN) ZEICHNEN ---
             for(let c of competitors) { 
                 ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.angle); 
-                
                 let imgToDraw = null;
-                if (c.brand === 'fedex') imgToDraw = (c.state === 'driving') ? imgFedExDrive : imgFedExStop;
-                else imgToDraw = (c.state === 'driving') ? imgUPSDrive : imgUPStop;
+                const isStopped = (c.state === 'stopped' || c.state === 'stopped_reckless' || c.state === 'attacking');
+                
+                if (c.brand === 'fedex') { imgToDraw = isStopped ? imgFedExStop : imgFedExDrive; }
+                else if (c.brand === 'ups') { imgToDraw = isStopped ? imgUPStop : imgUPSDrive; }
+                else if (c.brand === 'amazon') { imgToDraw = isStopped ? imgAmazonStop : imgAmazonDrive; }
+                else if (c.brand === 'gls') { imgToDraw = isStopped ? imgGLSStop : imgGLSDrive; }
+                else if (c.brand === 'dpd') { imgToDraw = (c.dpdVar === 1) ? imgDPDDrive1 : imgDPDDrive2; } // DPD hat nur Drive-Bilder
 
                 if (imgToDraw && imgToDraw.complete && imgToDraw.naturalHeight !== 0) {
                     ctx.rotate(-Math.PI/2); ctx.drawImage(imgToDraw, -c.w/2, -c.l/2, c.w, c.l); 
                 } else {
-                    ctx.fillStyle = (c.brand === 'fedex') ? '#00529b' : '#351c15'; ctx.fillRect(-c.l/2, -c.w/2, c.l, c.w); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-c.l/2, -c.w/2, c.l, c.w); ctx.fillStyle = '#add8e6'; ctx.fillRect(c.l/2 - 12, -c.w/2 + 2, 8, c.w - 4);
-                    if(c.state === 'stopped' || c.state === 'attacking') { ctx.fillStyle = 'red'; ctx.fillRect(-c.l/2, -c.w/2 + 2, 4, 6); ctx.fillRect(-c.l/2, c.w/2 - 8, 4, 6); }
+                    // Fallback
+                    ctx.fillStyle = '#333'; ctx.fillRect(-c.l/2, -c.w/2, c.l, c.w); ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(-c.l/2, -c.w/2, c.l, c.w);
                 }
                 ctx.restore(); 
-                if(c.state === 'attacking') { 
-                    ctx.fillStyle = (c.brand === 'fedex') ? '#00a8e1' : '#351c15';
-                    ctx.beginPath(); ctx.arc(c.x + 25, c.y - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke(); 
-                } 
+                if(c.state === 'attacking') { ctx.fillStyle = '#ff0'; ctx.beginPath(); ctx.arc(c.x + 25, c.y - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke(); } 
             }
 
             for(let p of projectiles) { ctx.save(); ctx.translate(p.x, p.y - Math.max(0, p.z)); ctx.rotate(frameCount * 0.2); ctx.fillStyle = '#8b4513'; ctx.fillRect(-6, -6, 12, 12); ctx.strokeStyle = '#111'; ctx.lineWidth = 1; ctx.strokeRect(-6, -6, 12, 12); ctx.restore(); }
             
             ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
-            
-            let imgToDraw = null;
-            if(car.type === 'bike') imgToDraw = imgBikeLeftLeg; 
-            else if(car.type === 'scooter') imgToDraw = imgScooter;
-            else if(car.type === 'transporter') imgToDraw = imgTransporter;
-
+            let imgToDraw = null; if(car.type === 'bike') imgToDraw = imgBikeLeftLeg; else if(car.type === 'scooter') imgToDraw = imgScooter; else if(car.type === 'transporter') imgToDraw = imgTransporter;
             if(car.type === 'bike') {
                 if(imgBikeLeftLeg.complete && imgBikeRightLeg.complete && imgBikeLeftTurn.complete && imgBikeRightTurn.complete && imgBikeDismounted.complete) {
                     let activeSprite = imgBikeLeftLeg; let wiggle = 0;
-                    if (gameState.isDelivering || gameState.brakingForMission) { activeSprite = imgBikeDismounted; } 
-                    else if (car.steeringAngle < -car.maxSteer * 0.3) { activeSprite = imgBikeLeftTurn; } 
-                    else if (car.steeringAngle > car.maxSteer * 0.3) { activeSprite = imgBikeRightTurn; } 
-                    else {
-                        let pedalFrame = Math.floor(frameCount * Math.abs(car.speed) * 0.1) % 2;
-                        activeSprite = (pedalFrame === 0) ? imgBikeLeftLeg : imgBikeRightLeg;
-                        if(Math.abs(car.speed) > 0.1) wiggle = Math.sin(frameCount * 0.3) * 0.005; // Wackeln extrem minimiert
-                    }
-                    ctx.rotate(-Math.PI/2 + wiggle); ctx.drawImage(activeSprite, -car.w/2, -car.l/2, car.w, car.l);
+                    if (gameState.isDelivering || gameState.brakingForMission) { activeSprite = imgBikeDismounted; } else if (car.steeringAngle < -car.maxSteer * 0.3) { activeSprite = imgBikeLeftTurn; } else if (car.steeringAngle > car.maxSteer * 0.3) { activeSprite = imgBikeRightTurn; } else { let pedalFrame = Math.floor(frameCount * Math.abs(car.speed) * 0.1) % 2; activeSprite = (pedalFrame === 0) ? imgBikeLeftLeg : imgBikeRightLeg; wiggle = Math.sin(frameCount * 0.3) * 0.005; } ctx.rotate(-Math.PI/2 + wiggle); ctx.drawImage(activeSprite, -car.w/2, -car.l/2, car.w, car.l);
                 }
-            } else if(imgToDraw && imgToDraw.complete && imgToDraw.naturalHeight !== 0) {
-                ctx.rotate(-Math.PI/2); ctx.drawImage(imgToDraw, -car.w/2, -car.l/2, car.w, car.l);
-            }
+            } else if(imgToDraw && imgToDraw.complete && imgToDraw.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(imgToDraw, -car.w/2, -car.l/2, car.w, car.l); }
             ctx.restore(); 
 
-            // --- ZUSTELLER ZEICHNEN ---
-            if (gameState.isDelivering) {
-                ctx.save(); ctx.translate(postman.x, postman.y);
-                
-                let walkAngle = 0; 
-                if (postman.state === 'to_door' || postman.state === 'to_car') {
-                    walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x);
-                    postman.lastAngle = walkAngle;
-                } else {
-                    walkAngle = postman.lastAngle || 0; 
-                }
-                ctx.rotate(walkAngle);
-                
-                let delivererType = (car.type === 'transporter') ? 'dhl' : 'post';
-                let foot = (Math.floor(frameCount / 10) % 2 === 0) ? 'left' : 'right';
-                if (postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') foot = 'left';
-
-                let counter = 'solo'; 
-                if (postman.state === 'to_door' || postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') {
-                    if (postman.type.name === 'Brief' && delivererType === 'post') counter = 'letter';
-                    else counter = 'parcel';
-                }
-                if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel'; 
-
-                let activeSprite = null;
-                try { activeSprite = postmanImgs[delivererType][counter][foot]; } catch(e) {}
-
-                if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) {
-                    ctx.rotate(-Math.PI/2); 
-                    ctx.drawImage(activeSprite, -20, -20, 40, 40); 
-                }
-                ctx.restore();
-            }
-
+            if (gameState.isDelivering) { ctx.save(); ctx.translate(postman.x, postman.y); let walkAngle = 0; if (postman.state === 'to_door' || postman.state === 'to_car') walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x); else walkAngle = Math.PI/2; ctx.rotate(walkAngle); let delivererType = (car.type === 'transporter') ? 'dhl' : 'post'; let foot = (Math.floor(frameCount / 10) % 2 === 0) ? 'left' : 'right'; if (postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') foot = 'left'; let counter = 'solo'; if (postman.state === 'to_door' || postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') { if (postman.type.name === 'Brief' && delivererType === 'post') counter = 'letter'; else counter = 'parcel'; } if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel'; let activeSprite = null; try { activeSprite = postmanImgs[delivererType][counter][foot]; } catch(e) {} if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(activeSprite, -20, -20, 40, 40); } ctx.restore(); }
             for(let ft of gameState.floatingTexts) { ctx.fillStyle = `rgba(255, 204, 0, ${ft.life / 60})`; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'center'; ctx.fillText(ft.text, ft.x, ft.y); }
             ctx.restore(); 
-
-            if (gameState.mission && !gameState.brakingForMission && !gameState.isDelivering) {
-                let sX = canvas.width/2 + (gameState.mission.triggerX - car.x); let sY = canvas.height/2 + (gameState.mission.triggerY - car.y);
-                if (sX < 40 || sX > canvas.width - 40 || sY < 40 || sY > canvas.height - 40) {
-                    let a = Math.atan2(gameState.mission.triggerY - car.y, gameState.mission.triggerX - car.x); let r = Math.min(canvas.width, canvas.height) / 2 - 60;
-                    ctx.save(); ctx.translate(canvas.width/2 + Math.cos(a)*r, canvas.height/2 + Math.sin(a)*r); ctx.rotate(a);
-                    ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(-15, 15); ctx.lineTo(-15, -15);
-                    ctx.fillStyle = '#ffcc00'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
-                }
-            }
+            if (gameState.mission && !gameState.brakingForMission && !gameState.isDelivering) { let sX = canvas.width/2 + (gameState.mission.triggerX - car.x); let sY = canvas.height/2 + (gameState.mission.triggerY - car.y); if (sX < 40 || sX > canvas.width - 40 || sY < 40 || sY > canvas.height - 40) { let a = Math.atan2(gameState.mission.triggerY - car.y, gameState.mission.triggerX - car.x); let r = Math.min(canvas.width, canvas.height) / 2 - 60; ctx.save(); ctx.translate(canvas.width/2 + Math.cos(a)*r, canvas.height/2 + Math.sin(a)*r); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(-15, 15); ctx.lineTo(-15, -15); ctx.fillStyle = '#ffcc00'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); } }
         }
         function loop() { update(); draw(); requestAnimationFrame(loop); } loop();
     </script>
