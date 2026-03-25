@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Anti-Stuck & Speed Fixes</title>
+    <title>DHL GTA - Modern HUD & Blickrichtung</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+        body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
         
         .overlay-screen {
@@ -16,30 +16,45 @@
         .vehicle-btn, .action-btn {
             background: #ffcc00; color: #111; border: none; padding: 15px 30px; font-size: 18px;
             font-weight: bold; margin: 10px; border-radius: 8px; cursor: pointer; width: 250px; text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.1s;
         }
+        .vehicle-btn:active, .action-btn:active { transform: scale(0.95); }
         .vehicle-btn:hover, .action-btn:hover { background: #e6b800; }
         
         input[type="text"] { padding: 10px; font-size: 16px; width: 250px; border-radius: 5px; border: 2px solid #ffcc00; margin-bottom: 10px; text-align: center; outline: none; box-sizing: border-box; }
 
-        #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0, 0, 0, 0.85); padding: 15px; border-radius: 8px; pointer-events: none; z-index: 10; border-left: 4px solid #ffcc00; display: none; }
-        h3 { margin: 0 0 5px 0; color: #ffcc00; font-size: 18px; }
-        #scoreDisplay { font-size: 20px; font-weight: bold; margin-top: 5px; }
-        #timerDisplay { font-size: 18px; color: #ffeb3b; font-weight: bold; margin-top: 5px; }
-        #speedo { font-size: 14px; margin-top: 5px; color: #ccc; }
-        #missionInfo { margin-top: 10px; color: #fff; font-size: 14px; }
+        /* --- NEUES MODERNES DASHBOARD --- */
+        #ui { 
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 600px;
+            background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(5px); -webkit-backdrop-filter: blur(5px);
+            border: 2px solid #ffcc00; border-top: 4px solid #d40511;
+            border-radius: 12px; padding: 10px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            color: white; z-index: 10; pointer-events: none;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.6); display: none;
+            box-sizing: border-box;
+        }
+        .ui-col { display: flex; flex-direction: column; }
+        .ui-center { align-items: center; text-align: center; }
+        .ui-right { align-items: flex-end; text-align: right; }
+        .ui-val { font-size: 18px; font-weight: bold; color: #fff; margin-top: 2px; }
+        .ui-lbl { font-size: 11px; color: #ffcc00; text-transform: uppercase; letter-spacing: 1px; }
+        .ui-highlight { color: #ffeb3b; }
         
-        #restartBtn { position: absolute; top: 10px; right: 10px; background: #d32f2f; color: white; border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; z-index: 10; display: none; }
+        #restartBtn { position: absolute; bottom: 20px; left: 20px; background: #d40511; color: white; border: 2px solid #fff; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
-        .task-ui { display: none; position: absolute; top: 20%; left: 50%; transform: translate(-50%, 0); background: #fff; border: 4px solid #ffcc00; padding: 15px; border-radius: 10px; z-index: 50; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .task-ui h3 { color: #111; margin: 0 0 10px 0; }
-        #sigCanvas { border: 2px dashed #ccc; background: #f9f9f9; cursor: crosshair; touch-action: none; }
-        .confirm-btn { background: #ffcc00; border: none; padding: 12px; width: 100%; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; border-radius: 5px; }
+        .task-ui { display: none; position: absolute; top: 25%; left: 50%; transform: translate(-50%, 0); background: #fff; border: 4px solid #ffcc00; padding: 15px; border-radius: 12px; z-index: 50; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.7); }
+        .task-ui h3 { color: #111; margin: 0 0 10px 0; font-size: 18px; }
+        #sigCanvas { border: 2px dashed #ccc; background: #f9f9f9; cursor: crosshair; touch-action: none; border-radius: 6px; }
+        .confirm-btn { background: #ffcc00; border: none; padding: 12px; width: 100%; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; border-radius: 6px; }
 
-        #touchControllerContainer { position: absolute; bottom: 20px; right: 20px; width: 220px; height: 220px; background: rgba(0, 0, 0, 0.4); border-radius: 50%; z-index: 10; border: 2px solid rgba(255, 255, 255, 0.2); box-shadow: 0 0 15px rgba(0,0,0,0.5); display: none; }
+        #touchControllerContainer { position: absolute; bottom: 20px; right: 20px; width: 220px; height: 220px; background: rgba(0, 0, 0, 0.4); border-radius: 50%; z-index: 10; border: 2px solid rgba(255, 255, 255, 0.2); box-shadow: 0 0 20px rgba(0,0,0,0.6); display: none; }
         #touchControllerCanvas { width: 100%; height: 100%; }
 
-        #leaderboardList { list-style: none; padding: 0; margin: 15px 0; text-align: left; width: 360px; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; }
-        #leaderboardList li { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.2); font-size: 15px; line-height: 1.4; }
+        #leaderboardList { list-style: none; padding: 0; margin: 15px 0; text-align: left; width: 360px; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 10px; border: 1px solid rgba(255,204,0,0.3); }
+        #leaderboardList li { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 15px; line-height: 1.4; }
+        #leaderboardList li:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -69,11 +84,18 @@
     </div>
 
     <div id="ui">
-        <h3>DHL Zusteller</h3>
-        <div id="timerDisplay">🎵 Lädt...</div>
-        <div id="scoreDisplay">Zugestellt: 0</div>
-        <div id="speedo">0 km/h</div>
-        <div id="missionInfo">Schicht beginnt...</div>
+        <div class="ui-col">
+            <span class="ui-lbl">Tempo</span>
+            <span class="ui-val" id="speedo">0 km/h</span>
+        </div>
+        <div class="ui-col ui-center">
+            <span class="ui-val ui-highlight" id="timerDisplay">🎵 Lädt...</span>
+            <span class="ui-lbl" id="missionInfo" style="margin-top: 3px; font-weight: bold; color: #fff;">Warte auf Einsatz...</span>
+        </div>
+        <div class="ui-col ui-right">
+            <span class="ui-lbl">Zustellungen</span>
+            <span class="ui-val" id="scoreDisplay">0</span>
+        </div>
     </div>
     
     <button id="restartBtn" onclick="location.reload()">Neustart</button>
@@ -105,9 +127,9 @@
         let isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         let deviceType = isTouchDevice ? 'Handy' : 'PC';
 
-        // Lade die Fahrzeug-Bilder (Scooter gefixt)
+        // Lade die Fahrzeug-Bilder
         const imgBike = new Image(); imgBike.src = 'Bike.png';
-        const imgScooter = new Image(); imgScooter.src = 'Street-Scooter.png'; 
+        const imgScooter = new Image(); imgScooter.src = '48205.png'; 
         const imgTransporter = new Image(); imgTransporter.src = 'Transporter.png';
 
         // Neue Bike Sprites
@@ -117,7 +139,7 @@
         const imgBikeRightTurn = new Image(); imgBikeRightTurn.src = 'Bike-Right-Turn.png';
         const imgBikeDismounted = new Image(); imgBikeDismounted.src = 'Bike-dismounted.png';
 
-        // Zusteller-Bilder
+        // Zusteller-Bilder 
         const postmanImgs = {
             post: {
                 letter: { left: new Image(), right: new Image() },
@@ -130,6 +152,7 @@
             }
         };
 
+        // Zuweisung strikt nach exaktem Dateinamen!
         postmanImgs.post.letter.left.src = 'Post-Zusteller-Letter-Left.png';
         postmanImgs.post.letter.right.src = 'Post-Zusteller-Letter-Right.png';
         postmanImgs.post.parcel.left.src = 'Post-Zusteller-Parcel-Left.png';
@@ -234,8 +257,7 @@
             { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '🟫' } 
         ];
         
-        // ZUSTELLER IST JETZT SCHNELLER (Speed 0.7)
-        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null };
+        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null, lastAngle: 0 };
 
         function spawnMission() {
             let minD = 0; let maxD = 9999;
@@ -275,10 +297,10 @@
             car.x = 0; car.y = -40; car.angle = 0; car.speed = 0; car.steeringAngle = 0;
             gameState.score = 0; gameState.isDelivering = false; gameState.brakingForMission = false; gameState.cooldown = 0;
             gameState.mission = null; gameState.lastMissionBId = null; postman.state = 'idle';
-            document.getElementById('scoreDisplay').innerText = `Zugestellt: 0`;
+            document.getElementById('scoreDisplay').innerText = `0`;
             
             document.getElementById('startScreen').style.display = 'none';
-            document.getElementById('ui').style.display = 'block';
+            document.getElementById('ui').style.display = 'flex'; // UI als flex-box einblenden
             document.getElementById('restartBtn').style.display = 'block';
             
             if(isTouchDevice) { document.getElementById('touchControllerContainer').style.display = 'block'; }
@@ -344,7 +366,7 @@
         }
 
         function successDelivery() {
-            gameState.score++; document.getElementById('scoreDisplay').innerText = `Zugestellt: ${gameState.score}`;
+            gameState.score++; document.getElementById('scoreDisplay').innerText = gameState.score;
             showFloatingText('+1', postman.x, postman.y - 20);
             postman.state = 'to_car'; postman.targetX = car.x; postman.targetY = car.y;
             document.getElementById('missionInfo').innerText = "Rückweg zum Fahrzeug...";
@@ -516,15 +538,13 @@
                 car.speed = Math.max(-car.maxSpeed/2, Math.min(car.maxSpeed, car.speed));
                 if(Math.abs(car.speed) < 0.05) car.speed = 0; 
                 
-                // LENKEN (Auch im Stand möglich zum Freiruckeln!)
+                // LENKEN im Stand möglich
                 if (Math.abs(car.speed) > 0.05) {
                     let targetSteer = 0; if (inputs.left) targetSteer = -car.maxSteer; if (inputs.right) targetSteer = car.maxSteer;
                     car.steeringAngle += (targetSteer - car.steeringAngle) * 0.15; 
                     let dir = car.speed > 0 ? 1 : -1; car.angle += car.steeringAngle * dir * (Math.abs(car.speed) / car.maxSpeed);
                 } else if (Math.abs(car.speed) < 0.1 && (inputs.left || inputs.right)) {
-                    // Lenken im Stand (Panzersteuerung extrem langsam) zum Entkommen
-                    let dir = inputs.right ? 1 : -1;
-                    car.angle += dir * car.maxSteer * 0.5;
+                    let dir = inputs.right ? 1 : -1; car.angle += dir * car.maxSteer * 0.5;
                 } else { car.steeringAngle *= 0.8; }
 
                 let nextX = car.x + Math.cos(car.angle) * car.speed; let nextY = car.y + Math.sin(car.angle) * car.speed;
@@ -536,15 +556,9 @@
                         car.speed *= 0.2; 
                         let canMoveX = !checkCollision(nextX, car.y).hit; let canMoveY = !checkCollision(car.x, nextY).hit; 
                         if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
-                        
-                        // ANTI-STUCK MECHANIK: Wenn du komplett an der Wand blockiert bist, schiebt es dich leicht zurück
                         if(!canMoveX && !canMoveY) { 
-                            if(col.ai) {
-                                let pushAngle = Math.atan2(car.y - col.ai.y, car.x - col.ai.x); car.x += Math.cos(pushAngle) * 1.5; car.y += Math.sin(pushAngle) * 1.5; col.ai.state = 'attacking'; showFloatingText("Hey!", col.ai.x, col.ai.y - 20); 
-                            } else {
-                                car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 1.5 : -1.5);
-                                car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 1.5 : -1.5);
-                            }
+                            if(col.ai) { let pushAngle = Math.atan2(car.y - col.ai.y, car.x - col.ai.x); car.x += Math.cos(pushAngle) * 1.5; car.y += Math.sin(pushAngle) * 1.5; col.ai.state = 'attacking'; showFloatingText("Hey!", col.ai.x, col.ai.y - 20); } 
+                            else { car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 1.5 : -1.5); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 1.5 : -1.5); }
                         } 
                     }
                 } else { car.x = nextX; car.y = nextY; }
@@ -576,45 +590,44 @@
             for(let p of projectiles) { ctx.save(); ctx.translate(p.x, p.y - Math.max(0, p.z)); ctx.rotate(frameCount * 0.2); ctx.fillStyle = '#8b4513'; ctx.fillRect(-6, -6, 12, 12); ctx.strokeStyle = '#111'; ctx.lineWidth = 1; ctx.strokeRect(-6, -6, 12, 12); ctx.restore(); }
             
             ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
-            
             let imgToDraw = null;
-            if(car.type === 'bike') imgToDraw = imgBikeLeftLeg; // Initial Fallback
+            if(car.type === 'bike') imgToDraw = imgBikeLeftLeg; 
             else if(car.type === 'scooter') imgToDraw = imgScooter;
             else if(car.type === 'transporter') imgToDraw = imgTransporter;
 
             if(car.type === 'bike') {
                 if(imgBikeLeftLeg.complete && imgBikeRightLeg.complete && imgBikeLeftTurn.complete && imgBikeRightTurn.complete && imgBikeDismounted.complete) {
-                    let activeSprite = imgBikeLeftLeg; 
-                    let wiggle = 0;
-
-                    if (gameState.isDelivering || gameState.brakingForMission) {
-                        activeSprite = imgBikeDismounted;
-                    } else if (car.steeringAngle < -car.maxSteer * 0.3) {
-                        activeSprite = imgBikeLeftTurn;
-                    } else if (car.steeringAngle > car.maxSteer * 0.3) {
-                        activeSprite = imgBikeRightTurn;
-                    } else {
+                    let activeSprite = imgBikeLeftLeg; let wiggle = 0;
+                    if (gameState.isDelivering || gameState.brakingForMission) { activeSprite = imgBikeDismounted; } 
+                    else if (car.steeringAngle < -car.maxSteer * 0.3) { activeSprite = imgBikeLeftTurn; } 
+                    else if (car.steeringAngle > car.maxSteer * 0.3) { activeSprite = imgBikeRightTurn; } 
+                    else {
                         let pedalFrame = Math.floor(frameCount * Math.abs(car.speed) * 0.1) % 2;
                         activeSprite = (pedalFrame === 0) ? imgBikeLeftLeg : imgBikeRightLeg;
-                        if(Math.abs(car.speed) > 0.1) wiggle = Math.sin(frameCount * 0.3) * 0.01; // Wackeln extrem reduziert!
+                        if(Math.abs(car.speed) > 0.1) wiggle = Math.sin(frameCount * 0.3) * 0.01;
                     }
-                    ctx.rotate(-Math.PI/2 + wiggle);
-                    ctx.drawImage(activeSprite, -car.w/2, -car.l/2, car.w, car.l);
+                    ctx.rotate(-Math.PI/2 + wiggle); ctx.drawImage(activeSprite, -car.w/2, -car.l/2, car.w, car.l);
                 }
             } else if(imgToDraw && imgToDraw.complete && imgToDraw.naturalHeight !== 0) {
-                ctx.rotate(-Math.PI/2);
-                ctx.drawImage(imgToDraw, -car.w/2, -car.l/2, car.w, car.l);
+                ctx.rotate(-Math.PI/2); ctx.drawImage(imgToDraw, -car.w/2, -car.l/2, car.w, car.l);
             }
             ctx.restore(); 
 
             // --- ZUSTELLER ZEICHNEN ---
             if (gameState.isDelivering) {
                 ctx.save(); ctx.translate(postman.x, postman.y);
-                let walkAngle = 0; if (postman.state === 'to_door' || postman.state === 'to_car') walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x); else walkAngle = Math.PI/2; ctx.rotate(walkAngle);
+                
+                // BLICKRICHTUNG BEIBEHALTEN!
+                let walkAngle = 0; 
+                if (postman.state === 'to_door' || postman.state === 'to_car') {
+                    walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x);
+                    postman.lastAngle = walkAngle; // Winkel merken!
+                } else {
+                    walkAngle = postman.lastAngle || 0; // Beim Warten auf Tür schauen
+                }
+                ctx.rotate(walkAngle);
                 
                 let delivererType = (car.type === 'transporter') ? 'dhl' : 'post';
-                
-                // Geh-Animation 
                 let foot = (Math.floor(frameCount / 10) % 2 === 0) ? 'left' : 'right';
                 if (postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') foot = 'left';
 
@@ -623,14 +636,14 @@
                     if (postman.type.name === 'Brief' && delivererType === 'post') counter = 'letter';
                     else counter = 'parcel';
                 }
-                if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel';
+                if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel'; // DHL hat keine Briefe
 
                 let activeSprite = null;
                 try { activeSprite = postmanImgs[delivererType][counter][foot]; } catch(e) {}
 
                 if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) {
                     ctx.rotate(-Math.PI/2); 
-                    ctx.drawImage(activeSprite, -15, -15, 30, 30); 
+                    ctx.drawImage(activeSprite, -20, -20, 40, 40); // Leicht vergrößert für bessere Sichtbarkeit
                 }
                 ctx.restore();
             }
