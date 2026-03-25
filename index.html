@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Packstation & Details</title>
+    <title>DHL GTA - Ablageort & Bugfixes</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -23,8 +23,8 @@
         .ui-lbl { font-size: 11px; color: #ffcc00; text-transform: uppercase; letter-spacing: 1px; }
         .ui-highlight { color: #ffeb3b; }
         
-        #eventIcons { position: absolute; top: 100%; margin-top: 5px; display: flex; gap: 10px; font-size: 18px; }
-        .event-icon { display: none; background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 5px; border: 1px solid #4caf50; color: #4caf50; }
+        #eventIcons { position: absolute; top: 100%; margin-top: 5px; display: flex; gap: 10px; font-size: 15px; }
+        .event-icon { display: none; background: rgba(0,0,0,0.7); padding: 4px 8px; border-radius: 5px; border: 1px solid #4caf50; color: #4caf50; font-weight: bold; }
 
         #restartBtn { position: absolute; bottom: 20px; left: 20px; background: #d40511; color: white; border: 2px solid #fff; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; z-index: 10; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
 
@@ -81,6 +81,7 @@
             
             <div id="eventIcons">
                 <span class="event-icon" id="iconPackstation" title="Nächstes Ziel: Packstation">Ziel: 📦x3</span>
+                <span class="event-icon" id="iconAblageort" title="Bonus: Ablageort">Ablageort 📦</span>
             </div>
         </div>
         <div class="ui-col ui-right">
@@ -177,7 +178,6 @@
             mapData.curves.push({ cx: -2000, cy: -2000, r: rW2, start: Math.PI, end: 1.5*Math.PI }); mapData.curves.push({ cx: 2000, cy: -2000, r: rW2, start: 1.5*Math.PI, end: 2*Math.PI });
             mapData.curves.push({ cx: 2000, cy: 2000, r: rW2, start: 0, end: 0.5*Math.PI }); mapData.curves.push({ cx: -2000, cy: 2000, r: rW2, start: 0.5*Math.PI, end: Math.PI });
             
-            // Packstations (Mit cx/cy für perfekte Rotation)
             mapData.packstations.push({ id: 'ps1', x: 200, y: 82, w: 90, h: 30, cx: 245, cy: 97, angle: Math.PI, haloX: 245, haloY: 60 });
             mapData.packstations.push({ id: 'ps2', x: -500, y: -1112, w: 90, h: 30, cx: -455, cy: -1097, angle: 0, haloX: -455, haloY: -1060 });
             mapData.packstations.push({ id: 'ps3', x: 1082, y: 500, w: 30, h: 90, cx: 1097, cy: 545, angle: Math.PI/2, drawW: 90, drawH: 30, haloX: 1060, haloY: 545 });
@@ -196,29 +196,23 @@
                         let c1 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r1 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: ix, y: blockY + 5, w: hSize, h: hSize, doorX: ix+hSize/2, doorY: blockY+5, haloX: ix+hSize/2, haloY: blockY - 25, color: c1, roofColor: r1, rType: 'h' });
                         if(Math.random()>0.5) mapData.garages.push({ x: ix+hSize, y: blockY+5, w: 40, h: 60, dir: 'up' });
-                        
-                        // Laterne oben
                         let skipL1 = false; for(let ps of mapData.packstations) if(Math.hypot((ix-20)-ps.cx, (blockY-15)-ps.cy) < 80) skipL1=true;
                         if(!skipL1 && Math.random() < 0.3) mapData.streetlights.push({ x: ix - 20, y: blockY - 15, state: 'normal', timer: 0, angle: 0 });
 
                         let c2 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r2 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: ix, y: blockY + blockH - hSize - 5, w: hSize, h: hSize, doorX: ix+hSize/2, doorY: blockY+blockH-5, haloX: ix+hSize/2, haloY: blockY+blockH + 25, color: c2, roofColor: r2, rType: 'h' });
                         if(Math.random()>0.5) mapData.garages.push({ x: ix+hSize, y: blockY+blockH-65, w: 40, h: 60, dir: 'down' });
-                        
-                        // Laterne unten
                         let skipL2 = false; for(let ps of mapData.packstations) if(Math.hypot((ix-20)-ps.cx, (blockY+blockH+15)-ps.cy) < 80) skipL2=true;
                         if(!skipL2 && Math.random() < 0.3) mapData.streetlights.push({ x: ix - 20, y: blockY + blockH + 15, state: 'normal', timer: 0, angle: 0 });
                     }
                     for(let iy = blockY + gap; iy < blockY + blockH - gap; iy += gap) {
                         let c3 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r3 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: blockX + 5, y: iy, w: hSize, h: hSize, doorX: blockX+5, doorY: iy+hSize/2, haloX: blockX - 25, haloY: iy+hSize/2, color: c3, roofColor: r3, rType: 'v' });
-                        
                         let skipL3 = false; for(let ps of mapData.packstations) if(Math.hypot((blockX-15)-ps.cx, (iy-20)-ps.cy) < 80) skipL3=true;
                         if(!skipL3 && Math.random() < 0.3) mapData.streetlights.push({ x: blockX - 15, y: iy - 20, state: 'normal', timer: 0, angle: 0 });
 
                         let c4 = houseColors[Math.floor(Math.random()*houseColors.length)]; let r4 = roofColors[Math.floor(Math.random()*roofColors.length)];
                         mapData.buildings.push({ id: Math.random(), x: blockX + blockW - hSize - 5, y: iy, w: hSize, h: hSize, doorX: blockX+blockW-5, doorY: iy+hSize/2, haloX: blockX+blockW + 25, haloY: iy+hSize/2, color: c4, roofColor: r4, rType: 'v' });
-                        
                         let skipL4 = false; for(let ps of mapData.packstations) if(Math.hypot((blockX+blockW+15)-ps.cx, (iy-20)-ps.cy) < 80) skipL4=true;
                         if(!skipL4 && Math.random() < 0.3) mapData.streetlights.push({ x: blockX + blockW + 15, y: iy - 20, state: 'normal', timer: 0, angle: 0 });
                     }
@@ -226,18 +220,22 @@
                 }
             }
             
-            for(let i=0; i<4; i++) {
+            // 6 Ereignisse auf der Map
+            for(let i=0; i<6; i++) {
                 let onXAxis = Math.random() < 0.5; let line = gridSteps[Math.floor(Math.random() * gridSteps.length)];
-                mapData.events.push({ x: onXAxis ? (Math.random()*4000)-2000 : line, y: onXAxis ? line : (Math.random()*4000)-2000, type: Math.random() < 0.5 ? 'time' : 'packstation', active: true });
+                let rand = Math.random(); let type = 'time';
+                if(rand > 0.33 && rand < 0.66) type = 'packstation';
+                else if(rand >= 0.66) type = 'ablageort';
+                mapData.events.push({ x: onXAxis ? (Math.random()*4000)-2000 : line, y: onXAxis ? line : (Math.random()*4000)-2000, type: type, active: true });
             }
 
             for(let i=0; i<16; i++) { competitors.push(spawnSingleAI()); }
         }
 
-        const gameState = { score: 0, isDelivering: false, brakingForMission: false, mission: null, lastMissionBId: null, floatingTexts: [], cooldown: 0, penaltyActive: false, packstationBuff: false };
+        const gameState = { score: 0, isDelivering: false, brakingForMission: false, mission: null, lastMissionBId: null, floatingTexts: [], cooldown: 0, penaltyActive: false, packstationBuff: false, ablageortBuff: false };
         
-        // PÄCKCHEN (🟫) und PAKET (📦)
-        const MISSION_TYPES = [ { name: 'Brief', waitTime: 0, color: '#fff', icon: '✉️' }, { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '🟫' }, { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '📦' } ];
+        // Päckchen und Paket haben nun beide das 📦 Icon
+        const MISSION_TYPES = [ { name: 'Brief', waitTime: 0, color: '#fff', icon: '✉️' }, { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '📦' }, { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '📦' } ];
         
         const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null, isPackstation: false, packstation_parcel_count: 0, packstation_parcel_timer: 0, lastAngle: 0, originalDoorX: 0, originalDoorY: 0 };
         const attacker = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 1.5, waitTimer: 0, type: null, sourceBrand: null, pose: 'throwing', attackingCompetitorId: null, lastAngle: 0, vx: 0, vy: 0 };
@@ -271,8 +269,8 @@
 
         function startGame(vehicleKey) {
             let v = VEHICLES[vehicleKey]; car.l = v.l; car.w = v.w; car.maxSpeed = v.maxSpeed; car.displaySpeed = v.displaySpeed; car.acceleration = v.acceleration; car.braking = v.braking; car.maxSteer = v.maxSteer; car.offroadFriction = v.offroadFriction; car.type = v.type; car.name = v.name;
-            initMapAndAI(); car.x = 0; car.y = -40; car.angle = 0; car.speed = 0; car.steeringAngle = 0; gameState.score = 0; gameState.isDelivering = false; gameState.brakingForMission = false; gameState.cooldown = 0; gameState.mission = null; gameState.lastMissionBId = null; postman.state = 'idle'; gameState.penaltyActive = false; gameState.packstationBuff = false;
-            document.getElementById('scoreDisplay').innerText = `0`; document.getElementById('startScreen').style.display = 'none'; document.getElementById('ui').style.display = 'flex'; document.getElementById('restartBtn').style.display = 'block'; document.getElementById('iconPackstation').style.display = 'none'; document.getElementById('penaltyImgPopup').style.display = 'none';
+            initMapAndAI(); car.x = 0; car.y = -40; car.angle = 0; car.speed = 0; car.steeringAngle = 0; gameState.score = 0; gameState.isDelivering = false; gameState.brakingForMission = false; gameState.cooldown = 0; gameState.mission = null; gameState.lastMissionBId = null; postman.state = 'idle'; gameState.penaltyActive = false; gameState.packstationBuff = false; gameState.ablageortBuff = false;
+            document.getElementById('scoreDisplay').innerText = `0`; document.getElementById('startScreen').style.display = 'none'; document.getElementById('ui').style.display = 'flex'; document.getElementById('restartBtn').style.display = 'block'; document.getElementById('iconPackstation').style.display = 'none'; document.getElementById('iconAblageort').style.display = 'none'; document.getElementById('penaltyImgPopup').style.display = 'none';
             if(isMobile) { document.getElementById('touchControllerContainer').style.display = 'block'; }
             bgMusic.currentTime = 0; bgMusic.play().catch(e => console.log("Audio Play verweigert"));
             gameActive = true; spawnMission();
@@ -328,7 +326,10 @@
             for(let c of competitors) { if(Math.hypot(nextX - c.x, nextY - c.y) < (carRadius + c.w/2 + 5)) return {hit: true, type: 'ai', ai: c}; }
 
             if (attacker.state !== 'idle' && !attacker.state.startsWith('hit_ragdoll')) {
-                if(Math.hypot(nextX - attacker.x, nextY - attacker.y) < (carRadius + 10)) return {hit: true, type: 'attacker'};
+                if(Math.hypot(nextX - attacker.x, nextY - attacker.y) < (carRadius + 10)) {
+                    if (car.type === 'bike') return {hit: true, type: 'solid', attacker: true};
+                    else return {hit: true, type: 'attacker'};
+                }
             }
             return {hit: false};
         }
@@ -370,6 +371,7 @@
                     ev.active = false;
                     if (ev.type === 'time') { bgMusic.currentTime = Math.max(0, bgMusic.currentTime - 15); showFloatingText("+15 Sek!", car.x, car.y - 40); } 
                     else if (ev.type === 'packstation') { gameState.packstationBuff = true; document.getElementById('iconPackstation').style.display = 'inline-block'; showFloatingText("Packstation-Bonus!", car.x, car.y - 40); }
+                    else if (ev.type === 'ablageort') { gameState.ablageortBuff = true; document.getElementById('iconAblageort').style.display = 'inline-block'; showFloatingText("Ablageort-Bonus!", car.x, car.y - 40); }
                 }
             }
 
@@ -396,7 +398,6 @@
 
                     if (Math.hypot(nextX - car.x, nextY - car.y) < 90) { isBlocked = true; blockedByPlayer = true; }
                     
-                    // KI darf nicht in Häuser fahren
                     let cCol = checkCollision(nextX, nextY);
                     if (cCol.hit && cCol.type === 'solid') { isBlocked = true; }
 
@@ -409,17 +410,11 @@
                         if(Math.abs(c.y) > 2400) { c.dirY *= -1; c.angle += Math.PI; c.baseAngle = c.angle; }
                         
                         if(Math.random() < 0.0005) { 
-                            // Rücksichtslos parken
-                            let drift = 15 + Math.random()*20; // Reduziert, damit sie nicht ins Haus clippen
-                            let newX = c.x, newY = c.y;
-                            let driftDir = Math.random()>0.5?1:-1;
+                            let drift = 15 + Math.random()*20; 
+                            let newX = c.x, newY = c.y; let driftDir = Math.random()>0.5?1:-1;
                             if(c.dirX !== 0) newY += driftDir * drift; else newX += driftDir * drift;
-                            
                             let testCol = checkCollision(newX, newY);
-                            if (!testCol.hit || testCol.type !== 'solid') {
-                                c.x = newX; c.y = newY;
-                                c.state = 'stopped_reckless'; c.timer = 500 + Math.random()*1500; c.speed = 0; c.angle = c.angle + (Math.random() - 0.5) * Math.PI * 0.6; 
-                            }
+                            if (!testCol.hit || testCol.type !== 'solid') { c.x = newX; c.y = newY; c.state = 'stopped_reckless'; c.timer = 500 + Math.random()*1500; c.speed = 0; c.angle = c.angle + (Math.random() - 0.5) * Math.PI * 0.6; }
                         } else if(Math.random() < 0.001) { c.state = 'stopped'; c.timer = 150 + Math.random()*200; c.speed = 0; }
                     }
                 } else if(c.state === 'stopped' || c.state === 'stopped_reckless') {
@@ -435,9 +430,7 @@
                     }
                 } else if(c.state === ' Prepare_Attack') {
                     c.speed = 0; c.timer--;
-                    if(c.timer <= 0) {
-                        c.state = 'Attack_Sequence'; c.timer = 60; attacker.sourceBrand = c.brand; attacker.attackingCompetitorId = c.id; attacker.x = c.x; attacker.y = c.y; attacker.pose = 'throwing'; attacker.targetX = c.x + Math.cos(c.angle) * car.l * 0.7; attacker.targetY = c.y + Math.sin(c.angle) * car.l * 0.7; attacker.state = 'to_attack_pos'; attacker.sourceCompetitor = c;
-                    }
+                    if(c.timer <= 0) { c.state = 'Attack_Sequence'; c.timer = 60; attacker.sourceBrand = c.brand; attacker.attackingCompetitorId = c.id; attacker.x = c.x; attacker.y = c.y; attacker.pose = 'throwing'; attacker.targetX = c.x + Math.cos(c.angle) * car.l * 0.7; attacker.targetY = c.y + Math.sin(c.angle) * car.l * 0.7; attacker.state = 'to_attack_pos'; attacker.sourceCompetitor = c; }
                 } else if(c.state === 'Attack_Sequence') { c.speed = 0; }
             }
 
@@ -463,8 +456,7 @@
                 inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0; 
                 let dx = postman.targetX - postman.x, dy = postman.targetY - postman.y; let dist = Math.hypot(dx, dy);
 
-                // Blickrichtung immer zum Ziel setzen, außer beim Warten
-                if (postman.state === 'to_door' || postman.state === 'to_car' || postman.state === 'to_neighbor' || postman.state === 'to_original_door') {
+                if (postman.state === 'to_door' || postman.state === 'to_car' || postman.state === 'to_neighbor' || postman.state === 'to_original_door' || postman.state === 'waiting_packstation_parcel' || postman.state === 'inserting_card') { 
                     postman.lastAngle = Math.atan2(dy, dx); 
                 }
 
@@ -472,6 +464,11 @@
                     if (dist > postman.speed) { postman.x += (dx/dist) * postman.speed; postman.y += (dy/dist) * postman.speed; } 
                     else { 
                         if(postman.isPackstation) { postman.state = 'waiting_packstation_parcel'; postman.packstation_parcel_count = 0; postman.packstation_parcel_timer = 120; }
+                        else if (gameState.ablageortBuff && (postman.type.name === 'Paket' || postman.type.name === 'Päckchen')) {
+                            // ABLAGEORT BONUS TRIGGER! Sofort zustellen!
+                            gameState.ablageortBuff = false; document.getElementById('iconAblageort').style.display = 'none'; gameState.penaltyActive = false; // Reset Penalty falls vorhanden
+                            successDelivery();
+                        }
                         else { postman.state = 'waiting'; document.getElementById('missionInfo').innerText = "Zustellung..."; }
                     }
                 } 
@@ -490,22 +487,23 @@
                 else if (postman.state === 'waiting') {
                     postman.waitTimer--;
                     if (postman.waitTimer <= 0) {
-                        if (gameState.penaltyActive && !postman.isPackstation && postman.type.name !== 'Brief') {
+                        // Fahrrad-Zusteller hat IMMUNITÄT gegen Nachbar-Strafe
+                        if (gameState.penaltyActive && !postman.isPackstation && postman.type.name !== 'Brief' && car.type !== 'bike') {
                             postman.state = 'to_neighbor'; 
                             postman.originalDoorX = postman.targetX; 
                             postman.originalDoorY = postman.targetY; 
                             
-                            // Nächsten Nachbarn auf der GLEICHEN Straßenseite finden
+                            // CRASH FIX: use lastMissionBId
                             let nearest = null; let minDist = 99999;
                             for(let b of mapData.buildings) {
-                                if(b.id === gameState.mission.bId) continue;
+                                if(b.id === gameState.lastMissionBId) continue; 
                                 if(Math.abs(b.doorX - postman.originalDoorX) < 10 || Math.abs(b.doorY - postman.originalDoorY) < 10) {
                                     let d = Math.hypot(b.doorX - postman.originalDoorX, b.doorY - postman.originalDoorY);
                                     if(d < minDist) { minDist = d; nearest = b; }
                                 }
                             }
                             if(nearest) { postman.targetX = nearest.doorX; postman.targetY = nearest.doorY; } 
-                            else { postman.targetX = postman.originalDoorX + 160; } // Fallback
+                            else { postman.targetX = postman.originalDoorX + 160; } 
                             
                             document.getElementById('missionInfo').innerText = "Gehe zum Nachbarn...";
                         } else {
@@ -513,7 +511,7 @@
                             else if(postman.type.name === 'Paket') {
                                 if(deviceType === 'Handy') { postman.state = 'signing'; document.getElementById('signatureUI').style.display = 'block'; sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); } 
                                 else { postman.state = 'typing'; document.getElementById('keyboardPackageUI').style.display = 'block'; document.getElementById('recipientName').value = ''; document.getElementById('recipientName').focus(); }
-                            } else { successDelivery(); } // Päckchen
+                            } else { successDelivery(); } 
                         }
                     }
                 } else if (postman.state === 'to_neighbor') {
@@ -566,14 +564,20 @@
                 
                 if (col.hit) { 
                     if (col.type === 'streetlight') {
-                        col.light.state = 'knocked'; col.light.timer = 120; col.light.angle = car.angle; gameState.penaltyActive = true; showFloatingText("Nachbarzustellung!", car.x, car.y - 40);
+                        col.light.state = 'knocked'; col.light.timer = 120; col.light.angle = car.angle; 
+                        if (car.type !== 'bike') { gameState.penaltyActive = true; showFloatingText("Nachbarzustellung!", car.x, car.y - 40); }
                     } else if (col.type === 'attacker') {
-                        attacker.state = 'hit_ragdoll'; attacker.vx = Math.cos(car.angle) * 6; attacker.vy = Math.sin(car.angle) * 6; attacker.timer = 60; gameState.penaltyActive = true; showFloatingText("Nachbarzustellung!", car.x, car.y - 40);
+                        // FAHRRAD SCHIEBT NUR WEG, BEKOMMT KEINE STRAFE
+                        if (car.type === 'bike') { car.speed *= 0.2; }
+                        else {
+                            attacker.state = 'hit_ragdoll'; attacker.vx = Math.cos(car.angle) * 6; attacker.vy = Math.sin(car.angle) * 6; attacker.timer = 60; 
+                            gameState.penaltyActive = true; showFloatingText("Nachbarzustellung!", car.x, car.y - 40);
+                        }
                     } else if (col.type === 'ai') { 
                         car.speed *= 0.2; let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; 
                         if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
                         if(!canMoveX && !canMoveY) { car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 2 : -2); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 2 : -2); car.speed = 0; } 
-                        col.ai.state = ' Prepare_Attack'; col.ai.timer = 10; showFloatingText("Hey!", col.ai.x, col.ai.y - 20);
+                        if (car.type !== 'bike') { col.ai.state = ' Prepare_Attack'; col.ai.timer = 10; showFloatingText("Hey!", col.ai.x, col.ai.y - 20); }
                     } else {
                         car.speed *= 0.2; let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; 
                         if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
@@ -683,23 +687,25 @@
             for(let ft of gameState.floatingTexts) { ctx.fillStyle = `rgba(255, 204, 0, ${ft.life / 60})`; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'center'; ctx.fillText(ft.text, ft.x, ft.y); }
             ctx.restore(); 
 
+            // PFEILE FÜR MISSION (Gelb)
             if (gameState.mission && !gameState.brakingForMission && !gameState.isDelivering) { 
                 let sX = canvas.width/2 + (gameState.mission.triggerX - car.x); let sY = canvas.height/2 + (gameState.mission.triggerY - car.y); 
                 if (sX < 40 || sX > canvas.width - 40 || sY < 40 || sY > canvas.height - 40) { 
                     let a = Math.atan2(gameState.mission.triggerY - car.y, gameState.mission.triggerX - car.x); let r = Math.min(canvas.width, canvas.height) / 2 - 60; 
                     ctx.save(); ctx.translate(canvas.width/2 + Math.cos(a)*r, canvas.height/2 + Math.sin(a)*r); 
                     ctx.rotate(a); ctx.beginPath(); ctx.moveTo(25, 0); ctx.lineTo(-15, 20); ctx.lineTo(-15, -20); ctx.fillStyle = '#ffcc00'; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth = 2; ctx.stroke(); 
-                    ctx.rotate(-a); ctx.fillStyle = '#111'; ctx.font = 'bold 18px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(gameState.mission.type.icon, 0, 0);
+                    ctx.rotate(-a); ctx.fillStyle = '#111'; ctx.font = '16px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(gameState.mission.type.icon, 0, 0);
                     ctx.restore(); 
                 } 
             }
+            // PFEILE FÜR EVENTS (Grün - KLEINER)
             for (let ev of mapData.events) {
                 if (ev.active) {
                     let sX = canvas.width/2 + (ev.x - car.x); let sY = canvas.height/2 + (ev.y - car.y); 
                     if (sX < 40 || sX > canvas.width - 40 || sY < 40 || sY > canvas.height - 40) { 
                         let a = Math.atan2(ev.y - car.y, ev.x - car.x); let r = Math.min(canvas.width, canvas.height) / 2 - 90; 
                         ctx.save(); ctx.translate(canvas.width/2 + Math.cos(a)*r, canvas.height/2 + Math.sin(a)*r); 
-                        ctx.rotate(a); ctx.beginPath(); ctx.moveTo(6, 0); ctx.lineTo(-3, 4); ctx.lineTo(-3, -4); ctx.fillStyle = '#4caf50'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); 
+                        ctx.rotate(a); ctx.beginPath(); ctx.moveTo(12, 0); ctx.lineTo(-6, 9); ctx.lineTo(-6, -9); ctx.fillStyle = '#4caf50'; ctx.fill(); ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke(); 
                         ctx.restore(); 
                     } 
                 }
