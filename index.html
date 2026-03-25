@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Finale Fixes & Bürgersteig</title>
+    <title>DHL GTA - Konkurrenz Update</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -139,6 +139,12 @@
         const imgBikeRightTurn = new Image(); imgBikeRightTurn.src = 'Bike-Right-Turn.png';
         const imgBikeDismounted = new Image(); imgBikeDismounted.src = 'Bike-dismounted.png';
 
+        // --- KONKURRENZ-BILDER LADEN ---
+        const imgFedExDrive = new Image(); imgFedExDrive.src = 'FedEx-Drive.png';
+        const imgFedExStop = new Image(); imgFedExStop.src = 'FedEx-Stop.png';
+        const imgUPSDrive = new Image(); imgUPSDrive.src = 'UPS-Drive.png';
+        const imgUPStop = new Image(); imgUPStop.src = 'UPS-Stop.png';
+
         // Zusteller-Bilder 
         const postmanImgs = {
             post: {
@@ -167,7 +173,7 @@
         function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         window.addEventListener('resize', resize); resize();
 
-        // --- FAHRZEUG-DATENBANK MIT NEUEN GRÖSSEN ---
+        // --- FAHRZEUG-DATENBANK MIT GEÄNDERTEN GRÖSSEN ---
         const VEHICLES = {
             bike: { l: 90, w: 39, maxSpeed: 1.25, displaySpeed: 25, acceleration: 0.1, braking: 0.15, maxSteer: 0.02, offroadFriction: 0.7, type: 'bike', name: 'Fahrrad' },
             scooter: { l: 91, w: 45, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
@@ -178,11 +184,11 @@
 
         const mapData = { roads: [], curves: [], sidewalks: [], buildings: [], fences: [], trees: [], garages: [] };
         const roadW = 160; const gridSteps = [-2000, -1000, 0, 1000, 2000]; 
-        const competitors = []; const aiColors = ['#00a8e1', '#00529b', '#351c15', '#dc0032']; 
+        const competitors = []; 
         let projectiles = [];
         
-        const houseColors = ['#8d6e63', '#a1887f', '#bcaaa4', '#795548', '#d7ccc8', '#9e9e9e'];
-        const roofColors = ['#5d4037', '#4e342e', '#3e2723', '#424242'];
+         houseColors = ['#8d6e63', '#a1887f', '#bcaaa4', '#795548', '#d7ccc8', '#9e9e9e'];
+ roofColors = ['#5d4037', '#4e342e', '#3e2723', '#424242'];
 
         function initMapAndAI() {
             mapData.roads = []; mapData.curves = []; mapData.sidewalks = []; mapData.buildings = []; mapData.fences = []; mapData.trees = []; mapData.garages = []; projectiles = [];
@@ -242,10 +248,17 @@
                     if (Math.hypot(aiX - 0, aiY - (-40)) > 400) validSpawn = true;
                 }
                 competitors.push({
-                    x: aiX, y: aiY, l: 90, w: 38, speed: 1 + Math.random()*0.5, baseSpeed: 1 + Math.random()*0.5,
-                    dirX: onXAxis ? (aiX > 0 ? -1: 1) : 0, dirY: onXAxis ? 0 : (aiY > 0 ? -1 : 1),
+                    x: aiX, y: aiY, 
+                    l: 90, w: 38, // Ungefähre Größe für Vans lassen wir so
+                    speed: 1 + Math.random()*0.5, 
+                    baseSpeed: 1 + Math.random()*0.5,
+                    dirX: onXAxis ? (aiX > 0 ? -1: 1) : 0, 
+                    dirY: onXAxis ? 0 : (aiY > 0 ? -1 : 1),
                     angle: onXAxis ? (aiX > 0 ? Math.PI : 0) : (aiY > 0 ? -Math.PI/2 : Math.PI/2),
-                    color: aiColors[i % aiColors.length], state: 'driving', timer: 0
+                    // Zuweisung der Marke
+                    brand: Math.random() < 0.5 ? 'fedex' : 'ups', 
+                    state: 'driving', 
+                    timer: 0
                 });
             }
         }
@@ -256,8 +269,7 @@
             { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '📦' },
             { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '🟫' } 
         ];
-        
-        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null, lastAngle: 0 };
+        const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.35, waitTimer: 0, type: null };
 
         function spawnMission() {
             let minD = 0; let maxD = 9999;
@@ -297,10 +309,10 @@
             car.x = 0; car.y = -40; car.angle = 0; car.speed = 0; car.steeringAngle = 0;
             gameState.score = 0; gameState.isDelivering = false; gameState.brakingForMission = false; gameState.cooldown = 0;
             gameState.mission = null; gameState.lastMissionBId = null; postman.state = 'idle';
-            document.getElementById('scoreDisplay').innerText = `0`;
+            document.getElementById('scoreDisplay').innerText = `Zugestellt: 0`;
             
             document.getElementById('startScreen').style.display = 'none';
-            document.getElementById('ui').style.display = 'flex'; 
+            document.getElementById('ui').style.display = 'block';
             document.getElementById('restartBtn').style.display = 'block';
             
             if(isMobile) { document.getElementById('touchControllerContainer').style.display = 'block'; }
@@ -366,7 +378,7 @@
         }
 
         function successDelivery() {
-            gameState.score++; document.getElementById('scoreDisplay').innerText = gameState.score;
+            gameState.score++; document.getElementById('scoreDisplay').innerText = `Zugestellt: ${gameState.score}`;
             showFloatingText('+1', postman.x, postman.y - 20);
             postman.state = 'to_car'; postman.targetX = car.x; postman.targetY = car.y;
             document.getElementById('missionInfo').innerText = "Rückweg zum Fahrzeug...";
@@ -384,13 +396,10 @@
             return {hit: false};
         }
 
-        // --- GEHWEG BREMS-LOGIK ---
         function getTerrainFriction(x, y) {
             for(let r of mapData.roads) if(x > r.x && x < r.x + r.w && y > r.y && y < r.y + r.h) return 0.96;
             for(let g of mapData.garages) if(x > g.x && x < g.x + g.w && y > g.y && y < g.y + g.h) return 0.96; 
-            for(let s of mapData.sidewalks) if(x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h) {
-                return (car.type === 'bike') ? 0.96 : 0.85; // Fahrrad wird nicht vom Gehweg gebremst!
-            }
+            for(let s of mapData.sidewalks) if(x > s.x && x < s.x + s.w && y > s.y && y < s.y + s.h) return 0.85; 
             return car.offroadFriction; 
         }
 
@@ -541,7 +550,6 @@
                 car.speed = Math.max(-car.maxSpeed/2, Math.min(car.maxSpeed, car.speed));
                 if(Math.abs(car.speed) < 0.05) car.speed = 0; 
                 
-                // LENKEN im Stand möglich
                 if (Math.abs(car.speed) > 0.05) {
                     let targetSteer = 0; if (inputs.left) targetSteer = -car.maxSteer; if (inputs.right) targetSteer = car.maxSteer;
                     car.steeringAngle += (targetSteer - car.steeringAngle) * 0.15; 
@@ -586,13 +594,69 @@
             ctx.setLineDash([]);
             ctx.fillStyle = '#6d4c41'; for (let f of mapData.fences) ctx.fillRect(f.x, f.y, f.w, f.h);
             for (let g of mapData.garages) { ctx.fillStyle = '#757575'; ctx.fillRect(g.x, g.y, g.w, g.h); ctx.strokeStyle = '#424242'; ctx.lineWidth=2; ctx.strokeRect(g.x, g.y, g.w, g.h); ctx.fillStyle = '#9e9e9e'; if(g.dir === 'up') ctx.fillRect(g.x+5, g.y-20, g.w-10, 20); else ctx.fillRect(g.x+5, g.y+g.h, g.w-10, 20); }
-            for (let b of mapData.buildings) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(b.x + 8, b.y + 12, b.w, b.h); ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h); ctx.fillStyle = b.roofColor; if(b.rType === 'h') { ctx.fillRect(b.x-5, b.y-5, b.w+10, b.h/2+5); ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(b.x-5, b.y+b.h/2, b.w+10, b.h/2+5); ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x-5, b.y+b.h/2); ctx.lineTo(b.x+b.w+5, b.y+b.h/2); ctx.stroke(); } else { ctx.fillRect(b.x-5, b.y-5, b.w/2+5, b.h+10); ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(b.x+b.w/2, b.y-5, b.w/2+5, b.h+10); ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x+b.w/2, b.y-5); ctx.lineTo(b.x+b.w/2, b.y+b.h+5); ctx.stroke(); } ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 8, b.doorY - 8, 16, 16); }
+            for (let b of mapData.buildings) {
+                ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(b.x + 8, b.y + 12, b.w, b.h); 
+                ctx.fillStyle = b.color; ctx.fillRect(b.x, b.y, b.w, b.h); 
+                
+                ctx.fillStyle = b.roofColor;
+                if(b.rType === 'h') {
+                    ctx.fillRect(b.x-5, b.y-5, b.w+10, b.h/2+5); 
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)'; 
+                    ctx.fillRect(b.x-5, b.y+b.h/2, b.w+10, b.h/2+5);
+                    ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x-5, b.y+b.h/2); ctx.lineTo(b.x+b.w+5, b.y+b.h/2); ctx.stroke(); 
+                } else {
+                    ctx.fillRect(b.x-5, b.y-5, b.w/2+5, b.h+10); 
+                    ctx.fillStyle = 'rgba(0,0,0,0.15)'; 
+                    ctx.fillRect(b.x+b.w/2, b.y-5, b.w/2+5, b.h+10);
+                    ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(b.x+b.w/2, b.y-5); ctx.lineTo(b.x+b.w/2, b.y+b.h+5); ctx.stroke(); 
+                }
+                
+                ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 8, b.doorY - 8, 16, 16); 
+            }
             for (let t of mapData.trees) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(t.x+5, t.y+5, t.r, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#2e7d32'; ctx.beginPath(); ctx.arc(t.x, t.y, t.r, 0, Math.PI*2); ctx.fill(); }
             if (gameState.mission && !gameState.isDelivering) { let m = gameState.mission; ctx.beginPath(); ctx.arc(m.triggerX, m.triggerY, m.radius + Math.sin(m.pulse) * 5, 0, Math.PI * 2); ctx.fillStyle = `rgba(255, 204, 0, ${gameState.brakingForMission ? 0.6 : 0.3})`; ctx.fill(); ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.stroke(); ctx.beginPath(); ctx.moveTo(m.triggerX, m.triggerY); ctx.lineTo(m.doorX, m.doorY); ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.setLineDash([5, 5]); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = '#fff'; ctx.font = '24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(m.type.icon, m.triggerX, m.triggerY); }
-            for(let c of competitors) { ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.angle); ctx.fillStyle = c.color; ctx.fillRect(-c.l/2, -c.w/2, c.l, c.w); ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-c.l/2, -c.w/2, c.l, c.w); ctx.fillStyle = '#add8e6'; ctx.fillRect(c.l/2 - 12, -c.w/2 + 2, 8, c.w - 4); if(c.state === 'stopped' || c.state === 'attacking') { ctx.fillStyle = 'red'; ctx.fillRect(-c.l/2, -c.w/2 + 2, 4, 6); ctx.fillRect(-c.l/2, c.w/2 - 8, 4, 6); } ctx.restore(); if(c.state === 'attacking') { ctx.fillStyle = c.color; ctx.beginPath(); ctx.arc(c.x + 25, c.y - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke(); } }
+            
+            // --- KONKURRENZ ZEICHNEN ---
+            for(let c of competitors) { 
+                ctx.save(); ctx.translate(c.x, c.y); ctx.rotate(c.angle); 
+                
+                // Auswahl des richtigen Bildes basierend auf Marke und Status
+                let imgToDraw = null;
+                if (c.brand === 'fedex') {
+                    imgToDraw = (c.state === 'driving') ? imgFedExDrive : imgFedExStop;
+                } else { // 'ups'
+                    imgToDraw = (c.state === 'driving') ? imgUPSDrive : imgUPStop;
+                }
+
+                if (imgToDraw && imgToDraw.complete && imgToDraw.naturalHeight !== 0) {
+                    // Ausrichtung des PNGs anpassen
+                    ctx.rotate(-Math.PI/2);
+                    // Zeichnen des Bildes
+                    ctx.drawImage(imgToDraw, -c.w/2, -c.l/2, c.w, c.l); 
+                } else {
+                    // Fallback (GTA 1 Style), falls Bilder nicht laden
+                    ctx.fillStyle = (c.brand === 'fedex') ? '#00529b' : '#351c15';
+                    ctx.fillRect(-c.l/2, -c.w/2, c.l, c.w);
+                    ctx.strokeStyle = '#111'; ctx.lineWidth = 2; ctx.strokeRect(-c.l/2, -c.w/2, c.l, c.w);
+                    ctx.fillStyle = '#add8e6'; ctx.fillRect(c.l/2 - 12, -c.w/2 + 2, 8, c.w - 4);
+                    if(c.state === 'stopped' || c.state === 'attacking') {
+                        ctx.fillStyle = 'red'; ctx.fillRect(-c.l/2, -c.w/2 + 2, 4, 6); ctx.fillRect(-c.l/2, c.w/2 - 8, 4, 6);
+                    }
+                }
+                
+                ctx.restore(); 
+                
+                // Partikel-Effekt bei Angriff (Farbe basierend auf Marke)
+                if(c.state === 'attacking') { 
+                    ctx.fillStyle = (c.brand === 'fedex') ? '#00a8e1' : '#351c15';
+                    ctx.beginPath(); ctx.arc(c.x + 25, c.y - 25, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke(); 
+                } 
+            }
+            
             for(let p of projectiles) { ctx.save(); ctx.translate(p.x, p.y - Math.max(0, p.z)); ctx.rotate(frameCount * 0.2); ctx.fillStyle = '#8b4513'; ctx.fillRect(-6, -6, 12, 12); ctx.strokeStyle = '#111'; ctx.lineWidth = 1; ctx.strokeRect(-6, -6, 12, 12); ctx.restore(); }
             
             ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle);
+            
             let imgToDraw = null;
             if(car.type === 'bike') imgToDraw = imgBikeLeftLeg; 
             else if(car.type === 'scooter') imgToDraw = imgScooter;
@@ -619,34 +683,19 @@
             // --- ZUSTELLER ZEICHNEN ---
             if (gameState.isDelivering) {
                 ctx.save(); ctx.translate(postman.x, postman.y);
-                
-                let walkAngle = 0; 
-                if (postman.state === 'to_door' || postman.state === 'to_car') {
-                    walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x);
-                    postman.lastAngle = walkAngle;
-                } else {
-                    walkAngle = postman.lastAngle || 0; 
-                }
-                ctx.rotate(walkAngle);
-                
+                let walkAngle = 0; if (postman.state === 'to_door' || postman.state === 'to_car') walkAngle = Math.atan2(postman.targetY - postman.y, postman.targetX - postman.x); else walkAngle = Math.PI/2; ctx.rotate(walkAngle);
                 let delivererType = (car.type === 'transporter') ? 'dhl' : 'post';
                 let foot = (Math.floor(frameCount / 10) % 2 === 0) ? 'left' : 'right';
                 if (postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') foot = 'left';
-
                 let counter = 'solo'; 
                 if (postman.state === 'to_door' || postman.state === 'waiting' || postman.state === 'signing' || postman.state === 'typing') {
                     if (postman.type.name === 'Brief' && delivererType === 'post') counter = 'letter';
                     else counter = 'parcel';
                 }
                 if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel'; 
-
                 let activeSprite = null;
                 try { activeSprite = postmanImgs[delivererType][counter][foot]; } catch(e) {}
-
-                if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) {
-                    ctx.rotate(-Math.PI/2); 
-                    ctx.drawImage(activeSprite, -20, -20, 40, 40); 
-                }
+                if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(activeSprite, -20, -20, 40, 40); }
                 ctx.restore();
             }
 
