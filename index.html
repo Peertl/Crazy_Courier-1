@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>DHL GTA - Events & Packstationen Update</title>
+    <title>DHL GTA - Finale Details & Nachbar Fix</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #2c2c2c; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         canvas { display: block; }
@@ -33,7 +33,6 @@
         #sigCanvas { border: 2px dashed #ccc; background: #f9f9f9; cursor: crosshair; touch-action: none; border-radius: 6px; }
         .confirm-btn { background: #ffcc00; border: none; padding: 12px; width: 100%; font-weight: bold; font-size: 16px; cursor: pointer; margin-top: 10px; border-radius: 6px; }
 
-        /* Penalty UI (Karte) */
         #penaltyUI { width: 280px; text-align: left; }
         #penaltyUI h3 { color: #d40511; border-bottom: 2px solid #ccc; padding-bottom: 5px; margin-bottom: 10px; }
         #penaltyUI p { color: #333; font-size: 15px; line-height: 1.5; margin: 0; }
@@ -129,6 +128,7 @@
         const postmanImgs = { post: { letter: { left: new Image(), right: new Image() }, parcel: { left: new Image(), right: new Image() }, solo: { left: new Image(), right: new Image() } }, dhl: { parcel: { left: new Image(), right: new Image() }, solo: { left: new Image(), right: new Image() } }, attackers: { amazon: { throwing: new Image(), after_throw: new Image() }, dpd: { throwing: new Image(), after_throw: new Image() }, fedex: { throwing: new Image(), after_throw: new Image() }, gls: { throwing: new Image(), after_throw: new Image() }, ups: { throwing: new Image(), after_throw: new Image() } } };
         const imgBike = new Image(); imgBike.src = 'Bike.png'; const imgScooter = new Image(); imgScooter.src = 'Street-Scooter.png'; const imgTransporter = new Image(); imgTransporter.src = 'Transporter.png'; const imgBikeLeftLeg = new Image(); imgBikeLeftLeg.src = 'Bike-Left-Leg.png'; const imgBikeRightLeg = new Image(); imgBikeRightLeg.src = 'Bike-Right-Leg.png'; const imgBikeLeftTurn = new Image(); imgBikeLeftTurn.src = 'Bike-Left-Turn.png'; const imgBikeRightTurn = new Image(); imgBikeRightTurn.src = 'Bike-Right-Turn.png'; const imgBikeDismounted = new Image(); imgBikeDismounted.src = 'Bike-dismounted.png';
         const imgFedExDrive = new Image(); imgFedExDrive.src = 'FedEx-Drive.png'; const imgFedExStop = new Image(); imgFedExStop.src = 'FedEx-Stop.png'; const imgUPSDrive = new Image(); imgUPSDrive.src = 'UPS-Drive.png'; const imgUPStop = new Image(); imgUPStop.src = 'UPS-Stop.png'; const imgAmazonDrive = new Image(); imgAmazonDrive.src = 'Amazon-Drive.png'; const imgAmazonStop = new Image(); imgAmazonStop.src = 'Amazon-Stop.png'; const imgDPDDrive = new Image(); imgDPDDrive.src = 'DPD-Drive.png'; const imgDPDDrive1 = new Image(); imgDPDDrive1.src = 'DPD-Drive-1.png'; const imgGLSDrive = new Image(); imgGLSDrive.src = 'GLS-Drive.png'; const imgGLSStop = new Image(); imgGLSStop.src = 'GLS-Stop.png';
+
         postmanImgs.post.letter.left.src = 'Post-Zusteller-Letter-Left.png'; postmanImgs.post.letter.right.src = 'Post-Zusteller-Letter-Right.png'; postmanImgs.post.parcel.left.src = 'Post-Zusteller-Parcel-Left.png'; postmanImgs.post.parcel.right.src = 'Post-Zusteller-Parcel-Right.png'; postmanImgs.post.solo.left.src = 'Post-Zusteller-Solo-Left.png'; postmanImgs.post.solo.right.src = 'Post-Zusteller-Solo-Right.png'; postmanImgs.dhl.parcel.left.src = 'DHL-Zusteller-Parcel-Left.png'; postmanImgs.dhl.parcel.right.src = 'DHL-Zusteller-Parcel-Right.png'; postmanImgs.dhl.solo.left.src = 'DHL-Zusteller-Solo-Left.png'; postmanImgs.dhl.solo.right.src = 'DHL-Zusteller-Solo-Right.png';
         postmanImgs.attackers.amazon.throwing.src = 'Konkurrent_Amazon_throwing.png'; postmanImgs.attackers.amazon.after_throw.src = 'Konkurrent_Amazon_after_throw.png'; postmanImgs.attackers.dpd.throwing.src = 'Konkurrent_DPD_throwing.png'; postmanImgs.attackers.dpd.after_throw.src = 'Konkurrent_DPD_after_throw.png'; postmanImgs.attackers.fedex.throwing.src = 'Konkurrent_FedEx_throwing.png'; postmanImgs.attackers.fedex.after_throw.src = 'Konkurrent_FedEx_after_throw.png'; postmanImgs.attackers.gls.throwing.src = 'Konkurrent_GLS_throwing.png'; postmanImgs.attackers.gls.after_throw.src = 'Konkurrent_GLS_after_throw.png'; postmanImgs.attackers.ups.throwing.src = 'Konkurrent_UPS_throwing.png'; postmanImgs.attackers.ups.after_throw.src = 'Konkurrent_UPS_after_throw.png';
 
@@ -140,6 +140,7 @@
             scooter: { l: 100, w: 42, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.20, maxSteer: 0.03, offroadFriction: 0.9, type: 'scooter', name: 'Verbund' },
             transporter: { l: 125, w: 48, maxSpeed: 2.75, displaySpeed: 50, acceleration: 0.12, braking: 0.15, maxSteer: 0.025, offroadFriction: 0.92, type: 'transporter', name: 'Paket' }
         };
+
         const car = { x: 0, y: 0, l: 65, w: 32, angle: 0, speed: 0, maxSpeed: 2.25, displaySpeed: 50, acceleration: 0.15, braking: 0.2, maxSteer: 0.04, offroadFriction: 0.9, type: 'scooter', name: 'Verbund', steeringAngle: 0, currentFriction: 0.96 };
 
         const mapData = { roads: [], curves: [], sidewalks: [], buildings: [], fences: [], trees: [], garages: [], streetlights: [], packstations: [], events: [] };
@@ -210,20 +211,18 @@
                 }
             }
             
-            // Events Generieren
             for(let i=0; i<4; i++) {
                 let onXAxis = Math.random() < 0.5; let line = gridSteps[Math.floor(Math.random() * gridSteps.length)];
-                mapData.events.push({
-                    x: onXAxis ? (Math.random()*4000)-2000 : line, y: onXAxis ? line : (Math.random()*4000)-2000,
-                    type: Math.random() < 0.5 ? 'time' : 'packstation', active: true
-                });
+                mapData.events.push({ x: onXAxis ? (Math.random()*4000)-2000 : line, y: onXAxis ? line : (Math.random()*4000)-2000, type: Math.random() < 0.5 ? 'time' : 'packstation', active: true });
             }
 
             for(let i=0; i<16; i++) { competitors.push(spawnSingleAI()); }
         }
 
         const gameState = { score: 0, isDelivering: false, brakingForMission: false, mission: null, lastMissionBId: null, floatingTexts: [], cooldown: 0, penaltyActive: false, packstationBuff: false };
-        const MISSION_TYPES = [ { name: 'Brief', waitTime: 0, color: '#fff', icon: '✉️' }, { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '📦' }, { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '🟫' } ];
+        
+        // --- NEUE ICONS ---
+        const MISSION_TYPES = [ { name: 'Brief', waitTime: 0, color: '#fff', icon: '✉️' }, { name: 'Päckchen', waitTime: 180, color: '#f0ad4e', icon: '🟫' }, { name: 'Paket', waitTime: 120, color: '#8b4513', icon: '📦' } ];
         
         const postman = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 0.7, waitTimer: 0, type: null, isPackstation: false, lastAngle: 0, originalDoorX: 0, originalDoorY: 0 };
         const attacker = { x: 0, y: 0, targetX: 0, targetY: 0, state: 'idle', speed: 1.5, waitTimer: 0, type: null, sourceBrand: null, pose: 'throwing', attackingCompetitorId: null, lastAngle: 0, vx: 0, vy: 0 };
@@ -286,7 +285,6 @@
         sigCanvas.addEventListener('touchend', e => { e.preventDefault(); isDrawing = false; }, {passive: false});
         function confirmSignature() { if (postman.state !== 'signing') return; document.getElementById('signatureUI').style.display = 'none'; sctx.clearRect(0, 0, sigCanvas.width, sigCanvas.height); successDelivery(); }
         
-        // BUGFIX: Erfolg richtig werten!
         function successDelivery() { 
             let points = postman.isPackstation ? 3 : 1;
             gameState.score += points; 
@@ -311,9 +309,7 @@
                     else return {hit: true, type: 'streetlight', light: l};
                 }
             }
-
-            // KI-Fahrzeuge Kollision repariert!
-            for(let c of competitors) { if(Math.hypot(nextX - c.x, nextY - c.y) < (carRadius + c.w/2 + 5)) return {hit: true, type: 'ai', ai: c}; }
+            for(let c of competitors) { if(Math.hypot(nextX - c.x, nextY - c.y) < (carRadius + c.w/2 + 5)) return {hit: true, type: 'solid', ai: c}; }
 
             if (attacker.state !== 'idle' && !attacker.state.startsWith('hit_ragdoll')) {
                 if(Math.hypot(nextX - attacker.x, nextY - attacker.y) < (carRadius + 10)) return {hit: true, type: 'attacker'};
@@ -462,8 +458,7 @@
 
             // --- ZUSTELL-SEQUENZ ---
             if (gameState.isDelivering) {
-                inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0; 
-                let dx = postman.targetX - postman.x, dy = postman.targetY - postman.y; let dist = Math.hypot(dx, dy);
+                inputs.fwd = inputs.rev = inputs.left = inputs.right = false; car.speed = 0; let dx = postman.targetX - postman.x, dy = postman.targetY - postman.y; let dist = Math.hypot(dx, dy);
 
                 if (postman.state === 'to_door' || postman.state === 'to_car' || postman.state === 'to_neighbor' || postman.state === 'to_original_door') {
                     postman.lastAngle = Math.atan2(dy, dx);
@@ -477,8 +472,26 @@
                 } else if (postman.state === 'waiting') {
                     postman.waitTimer--;
                     if (postman.waitTimer <= 0) {
+                        // FIX: Penalty Logik, nur wenn Paket/Päckchen UND NICHT Packstation
                         if (gameState.penaltyActive && !postman.isPackstation && postman.type.name !== 'Brief') {
-                            postman.state = 'to_neighbor'; postman.originalDoorX = postman.targetX; postman.originalDoorY = postman.targetY; postman.targetX = postman.originalDoorX + 160; document.getElementById('missionInfo').innerText = "Gehe zum Nachbarn...";
+                            postman.state = 'to_neighbor'; 
+                            postman.originalDoorX = postman.targetX; 
+                            postman.originalDoorY = postman.targetY; 
+                            
+                            // Finde Nachbarn auf der gleichen Straßenseite
+                            let nearest = null; let minDist = 99999;
+                            for(let b of mapData.buildings) {
+                                if(b.id === gameState.mission.bId) continue;
+                                let d = Math.hypot(b.doorX - postman.originalDoorX, b.doorY - postman.originalDoorY);
+                                if(d < minDist) { minDist = d; nearest = b; }
+                            }
+                            if(nearest) {
+                                postman.targetX = nearest.doorX; postman.targetY = nearest.doorY;
+                            } else {
+                                postman.targetX = postman.originalDoorX + 160; 
+                            }
+                            
+                            document.getElementById('missionInfo').innerText = "Gehe zum Nachbarn...";
                         } else {
                             if(postman.isPackstation || postman.type.name === 'Brief') { successDelivery(); }
                             else if(postman.type.name === 'Paket') {
@@ -535,7 +548,7 @@
                         col.light.state = 'flickering'; col.light.timer = 60; gameState.penaltyActive = true; showFloatingText("Nachbarzustellung!", car.x, car.y - 40);
                     } else if (col.type === 'attacker') {
                         attacker.state = 'hit_ragdoll'; attacker.vx = Math.cos(car.angle) * 6; attacker.vy = Math.sin(car.angle) * 6; attacker.timer = 60; gameState.penaltyActive = true; showFloatingText("Nachbarzustellung!", car.x, car.y - 40);
-                    } else if (col.type === 'ai') { 
+                    } else if (col.ai) { 
                         car.speed *= 0.2; let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; 
                         if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
                         if(!canMoveX && !canMoveY) { car.x -= Math.cos(car.angle) * (car.speed >= 0 ? 2 : -2); car.y -= Math.sin(car.angle) * (car.speed >= 0 ? 2 : -2); car.speed = 0; } 
@@ -613,13 +626,12 @@
             if (gameState.isDelivering) { 
                 ctx.save(); ctx.translate(postman.x, postman.y); 
                 ctx.rotate(postman.lastAngle); 
-                let delivererType = (car.type === 'transporter') ? 'dhl' : 'post'; let foot = (Math.floor(frameCount / 10) % 2 === 0) ? 'left' : 'right'; if (postman.state === 'waiting' || postman.state === 'waiting_neighbor' || postman.state === 'signing' || postman.state === 'typing') foot = 'left'; let counter = 'solo'; if (postman.state === 'to_door' || postman.state === 'waiting' || postman.state === 'to_neighbor' || postman.state === 'waiting_neighbor' || postman.state === 'to_original_door') { if (postman.type.name === 'Brief' && delivererType === 'post') counter = 'letter'; else counter = 'parcel'; } if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel'; let activeSprite = null; try { activeSprite = postmanImgs[delivererType][counter][foot]; } catch(e) {} if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(activeSprite, -20, -20, 40, 40); } 
+                let delivererType = (car.type === 'transporter') ? 'dhl' : 'post'; let foot = (Math.floor(frameCount / 10) % 2 === 0) ? 'left' : 'right'; if (postman.state === 'waiting' || postman.state === 'waiting_neighbor' || postman.state === 'signing' || postman.state === 'typing') foot = 'left'; let counter = 'solo'; if (postman.state === 'to_door' || postman.state === 'waiting' || postman.state === 'to_neighbor' || postman.state === 'waiting_neighbor') { if (postman.type.name === 'Brief' && delivererType === 'post') counter = 'letter'; else counter = 'parcel'; } if (delivererType === 'dhl' && counter === 'letter') counter = 'parcel'; let activeSprite = null; try { activeSprite = postmanImgs[delivererType][counter][foot]; } catch(e) {} if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(activeSprite, -20, -20, 40, 40); } 
                 ctx.restore(); 
             }
             
             if (attacker.state !== 'idle') {
-                ctx.save(); ctx.translate(attacker.x, attacker.y);
-                ctx.rotate(attacker.lastAngle);
+                ctx.save(); ctx.translate(attacker.x, attacker.y); ctx.rotate(attacker.lastAngle);
                 let delivererBrand = attacker.sourceBrand; let attackerPose = attacker.pose; let activeSprite = null;
                 try { activeSprite = postmanImgs.attackers[delivererBrand][attackerPose]; } catch(e) {}
                 if (activeSprite && activeSprite.complete && activeSprite.naturalHeight !== 0) { ctx.rotate(-Math.PI/2); ctx.drawImage(activeSprite, -20, -20, 40, 40); }
@@ -629,7 +641,6 @@
             for(let ft of gameState.floatingTexts) { ctx.fillStyle = `rgba(255, 204, 0, ${ft.life / 60})`; ctx.font = 'bold 26px Arial'; ctx.textAlign = 'center'; ctx.fillText(ft.text, ft.x, ft.y); }
             ctx.restore(); 
 
-            // PFEILE FÜR MISSION UND EVENTS
             if (gameState.mission && !gameState.brakingForMission && !gameState.isDelivering) { 
                 let sX = canvas.width/2 + (gameState.mission.triggerX - car.x); let sY = canvas.height/2 + (gameState.mission.triggerY - car.y); 
                 if (sX < 40 || sX > canvas.width - 40 || sY < 40 || sY > canvas.height - 40) { 
