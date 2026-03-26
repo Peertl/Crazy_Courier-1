@@ -61,7 +61,7 @@
     <div id="startScreen" class="overlay-screen">
         <img src="Post-Zusteller-Parcel-Right.png" style="width: 100px; margin-bottom: 10px; filter: drop-shadow(0 4px 10px rgba(0,0,0,0.5));">
         <h1 style="color: #ffcc00; margin-bottom: 5px; text-align: center;">Verflixt & Zugestellt</h1>
-        <p style="margin-top: 0; color: #ccc;">Die Schicht endet, wenn der Song vorbei ist!</p>
+        <p style="margin-top: 0; color: #ccc;">Am Ende vom Lied bist du geliefert</p>
         
         <button class="action-btn" style="background:#2196F3; color:#fff;" onclick="document.getElementById('tutorialScreen').style.display='flex'">📖 Anleitung ansehen</button>
         <button class="vehicle-btn" onclick="startGame('bike')">🚲 Post-Fahrrad</button>
@@ -78,9 +78,9 @@
             <p><img src="Benachrichtigung.png" style="width:40px; vertical-align:middle; margin-right:8px;"><b>Strafe (Nachbar):</b> Bei schlechtem Karma triffst du den Kunden nicht an. Du musst zum Nachbarn laufen und danach die Karte einwerfen!</p>
             <p><span style="color:#4caf50; font-weight:bold; font-size:20px; vertical-align:middle; margin-right:8px;">O</span><b>Grüne Ereignisfelder (Boni):</b>
                 <ul style="margin-top:5px; padding-left:20px;">
-                    <li><b>+ 15 Sekunden:</b> Verlängert deine Schicht.</li>
-                    <li><b>Packstation:</b> Werde 3 Pakete auf einmal los.</li>
-                    <li><b>Ablageort:</b> Zustellung ohne Wartezeit & heilt Strafen!</li>
+                    <li><b>+ 15 Sekunden:</b> Gewinne Zeit</li>
+                    <li><b>Packstation:</b> Werde 3 Pakete auf einmal los</li>
+                    <li><b>Ablageort:</b> Zustellung ohne Wartezeit</li>
                 </ul>
             </p>
         </div>
@@ -88,7 +88,7 @@
     </div>
 
     <div id="gameOverScreen" class="overlay-screen" style="display: none;">
-        <h1 style="color: #ffcc00; margin-bottom: 5px;">Schicht beendet!</h1>
+        <h1 style="color: #ffcc00; margin-bottom: 5px;">Einfach geliefert!</h1>
         <h2>Zugestellte Sendungen: <span id="finalScoreDisplay">0</span></h2>
         
         <div id="playerNameArea" style="display: block; text-align: center;">
