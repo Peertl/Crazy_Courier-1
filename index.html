@@ -822,7 +822,7 @@
                     onXAxis = Math.random() < 0.5; line = gridSteps[Math.floor(Math.random() * gridSteps.length)];
                     evX = onXAxis ? (Math.random()*4000)-2000 : line; evY = onXAxis ? line : (Math.random()*4000)-2000;
                     validSpawn = true;
-                    if(Math.hypot(evX - 0, evY - 40) < 400) validSpawn = false;
+                    if(Math.hypot(evX - 0, evY - (-40)) < 400) validSpawn = false;
                     for(let existingEv of mapData.events) { 
                         if(Math.hypot(evX - existingEv.x, evY - existingEv.y) < 400) validSpawn = false; 
                     }
@@ -924,7 +924,7 @@
             Object.assign(car, VEHICLES[vehicleKey]);
             initMapAndAI(); 
             
-            // FÄHRT JETZT AUF DER RECHTEN SEITE
+            // FÄHRT JETZT (WIRKLICH) AUF DER RECHTEN SEITE
             car.x = 0; car.y = 40; car.vx = 0; car.vy = 0; car.angle = 0; 
             car.speed = 0; car.steeringAngle = 0; car.lastCrash = 0; 
             
@@ -1127,10 +1127,14 @@
                 if (Math.abs(g.x - nextX) > checkDist || Math.abs(g.y - nextY) > checkDist) continue;
                 if(rectDist(nextX, nextY, g.x, g.y, g.w, g.h) < carRadius) return {hit: true, type: 'solid'};
             }
+            
+            /* Zäune sollen durchfahrbar sein - auskommentiert
             for(let f of mapData.fences) {
                 if (Math.abs(f.x - nextX) > checkDist || Math.abs(f.y - nextY) > checkDist) continue;
                 if(rectDist(nextX, nextY, f.x, f.y, f.w, f.h) < carRadius) return {hit: true, type: 'solid'};
             }
+            */
+
             for(let p of mapData.packstations) {
                 if (Math.abs(p.cx - nextX) > checkDist || Math.abs(p.cy - nextY) > checkDist) continue;
                 if(rectDist(nextX, nextY, p.cx - p.w/2 + 20, p.cy - p.h/2, p.w - 40, p.h) < carRadius) return {hit: true, type: 'solid'};
@@ -1794,10 +1798,27 @@
                             car.x = nextX; car.y = nextY;
                         } else {
                             if (car.type === 'transporter') {
-                                car.speed *= 0.3; 
-                                col.ai.x += Math.cos(car.angle) * 12; col.ai.y += Math.sin(car.angle) * 12; 
-                                col.ai.state = 'stopped'; col.ai.timer = 40; 
-                                car.x = nextX; car.y = nextY;
+                                // Weniger stark abbremsen, um besser schieben zu können
+                                car.speed *= 0.8; 
+                                
+                                // Vektor vom Transporter zum KI-Auto berechnen (für das seitliche Wegschieben)
+                                let pushAngle = Math.atan2(col.ai.y - car.y, col.ai.x - car.x);
+                                
+                                // KI-Auto in diese "Wegrutsch"-Richtung wegschieben
+                                col.ai.x += Math.cos(pushAngle) * (Math.abs(car.speed) + 8); 
+                                col.ai.y += Math.sin(pushAngle) * (Math.abs(car.speed) + 8); 
+                                
+                                // Das KI-Auto leicht wegdrehen (optischer Dreheffekt)
+                                let angleDiff = car.angle - pushAngle;
+                                angleDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff)); // Winkel normalisieren
+                                col.ai.angle += angleDiff > 0 ? 0.1 : -0.1;
+                                
+                                col.ai.state = 'stopped'; 
+                                col.ai.timer = 40; 
+                                
+                                // Transporter darf weiterrutschen/fahren
+                                car.x = nextX; 
+                                car.y = nextY;
                             } else {
                                 car.speed *= 0.2; 
                                 let canMoveX = !checkCollision(nextX, car.y).hit;
