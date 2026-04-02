@@ -572,10 +572,10 @@
         window.addEventListener('resize', resize); 
         resize();
 
-        // STREET SCOOTER TUNING: acceleration erhöht von 0.25 auf 0.35 für noch besseren Anzug
+        // STREET SCOOTER TUNING: acceleration von 0.35 auf 0.45! Richtig flink jetzt.
         const VEHICLES = {
             bike: { l: 80, w: 35, maxSpeed: 1.25, superSpeed: 2.3, acceleration: 0.1, braking: 0.15, maxSteer: 0.025, type: 'bike', name: 'Fahrrad' },
-            scooter: { l: 100, w: 42, maxSpeed: 2.25, superSpeed: 2.9, acceleration: 0.35, braking: 0.25, maxSteer: 0.035, type: 'scooter', name: 'Verbund' },
+            scooter: { l: 100, w: 42, maxSpeed: 2.25, superSpeed: 2.9, acceleration: 0.45, braking: 0.25, maxSteer: 0.035, type: 'scooter', name: 'Verbund' },
             transporter: { l: 125, w: 48, maxSpeed: 2.3, superSpeed: 3.0, acceleration: 0.1, braking: 0.15, maxSteer: 0.025, type: 'transporter', name: 'Paket' }
         };
 
@@ -1960,18 +1960,6 @@
                 if(g.dir === 'up') ctx.fillRect(g.x+5, g.y-20, g.w-10, 20); 
                 else ctx.fillRect(g.x+5, g.y+g.h, g.w-10, 20); 
             }
-            
-            // Packstationen
-            for(let ps of mapData.packstations) {
-                if (imgPackstation.complete && imgPackstation.naturalHeight !== 0) {
-                    ctx.save(); ctx.translate(ps.cx, ps.cy); ctx.rotate(ps.angle);
-                    let aspect = imgPackstation.naturalWidth / imgPackstation.naturalHeight;
-                    let targetH = 30; 
-                    let targetW = targetH * aspect;
-                    ctx.drawImage(imgPackstation, -targetW/2, -targetH/2, targetW, targetH); 
-                    ctx.restore();
-                }
-            }
 
             // Häuser
             for (let b of mapData.buildings) { 
@@ -1993,6 +1981,18 @@
                     ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(rx+rw/2, ry); ctx.lineTo(rx+rw/2, ry+rh); ctx.stroke(); 
                 } 
                 // ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 8, b.doorY - 8, 16, 16); 
+            }
+
+            // Packstationen (NACH den Häusern gezeichnet, damit keine Schatten darauf fallen)
+            for(let ps of mapData.packstations) {
+                if (imgPackstation.complete && imgPackstation.naturalHeight !== 0) {
+                    ctx.save(); ctx.translate(ps.cx, ps.cy); ctx.rotate(ps.angle);
+                    let aspect = imgPackstation.naturalWidth / imgPackstation.naturalHeight;
+                    let targetH = 30; 
+                    let targetW = targetH * aspect;
+                    ctx.drawImage(imgPackstation, -targetW/2, -targetH/2, targetW, targetH); 
+                    ctx.restore();
+                }
             }
             
             // Bäume
