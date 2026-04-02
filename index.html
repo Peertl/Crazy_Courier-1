@@ -572,13 +572,14 @@
         window.addEventListener('resize', resize); 
         resize();
 
+        // STREET SCOOTER TUNING: acceleration erhöht von 0.25 auf 0.35 für noch besseren Anzug
         const VEHICLES = {
             bike: { l: 80, w: 35, maxSpeed: 1.25, superSpeed: 2.3, acceleration: 0.1, braking: 0.15, maxSteer: 0.025, type: 'bike', name: 'Fahrrad' },
-            scooter: { l: 100, w: 42, maxSpeed: 2.25, superSpeed: 2.9, acceleration: 0.15, braking: 0.20, maxSteer: 0.03, type: 'scooter', name: 'Verbund' },
+            scooter: { l: 100, w: 42, maxSpeed: 2.25, superSpeed: 2.9, acceleration: 0.35, braking: 0.25, maxSteer: 0.035, type: 'scooter', name: 'Verbund' },
             transporter: { l: 125, w: 48, maxSpeed: 2.3, superSpeed: 3.0, acceleration: 0.1, braking: 0.15, maxSteer: 0.025, type: 'transporter', name: 'Paket' }
         };
 
-        const car = { x: 0, y: 0, vx: 0, vy: 0, l: 65, w: 32, angle: 0, speed: 0, steeringAngle: 0, lastCrash: 0 };
+        const car = { x: 0, y: 0, vx: 0, vy: 0, l: 65, w: 32, angle: 0, speed: 0, steeringAngle: 0, lastCrash: 0, lastSafeX: 0, lastSafeY: 40 };
         const mapData = { roads: [], sidewalks: [], buildings: [], fences: [], trees: [], garages: [], streetlights: [], packstations: [], events: [] };
         
         const roadW = 160; 
@@ -927,6 +928,7 @@
             // FÄHRT JETZT (WIRKLICH) AUF DER RECHTEN SEITE
             car.x = 0; car.y = 40; car.vx = 0; car.vy = 0; car.angle = 0; 
             car.speed = 0; car.steeringAngle = 0; car.lastCrash = 0; 
+            car.lastSafeX = 0; car.lastSafeY = 40;
             
             gameState.score = 0; gameState.isDelivering = false; gameState.brakingForMission = false; 
             gameState.cooldown = 0; gameState.mission = null; gameState.lastMissionBId = null; 
@@ -1294,6 +1296,12 @@
             }
 
             if(isMobile) updateTouchControls();
+
+            // ANTI-STUCK: Speichere eine "sichere" Position, solange das Auto nicht in der Wand ist.
+            if (!checkCollision(car.x, car.y).hit) {
+                car.lastSafeX = car.x;
+                car.lastSafeY = car.y;
+            }
 
             for (let i = crashParticles.length - 1; i >= 0; i--) {
                 let p = crashParticles[i];
@@ -1749,7 +1757,8 @@
                 let grip = 0.2; 
                 if (car.type !== 'bike' && Math.abs(car.steeringAngle) > car.maxSteer * 0.6 && Math.abs(car.speed) > car.maxSpeed * 0.65) {
                     isDrifting = true;
-                    grip = 0.045; 
+                    // GRIP WURDE ERHÖHT (0.045 -> 0.09) FÜR WENIGER GESCHWINDIGKEITSVERLUST!
+                    grip = 0.09; 
                 }
 
                 if (car.vx === undefined) { car.vx = 0; car.vy = 0; }
@@ -1857,6 +1866,15 @@
                     }
                 } else { 
                     car.x = nextX; car.y = nextY; 
+                }
+
+                // Anti-Stuck Safeguard (falls man durch schnelle Rotation in ein Objekt glitched)
+                if (checkCollision(car.x, car.y).hit) {
+                    car.x = car.lastSafeX;
+                    car.y = car.lastSafeY;
+                    car.speed *= -0.5; // Leichter Bounce-Back
+                    car.vx = 0;
+                    car.vy = 0;
                 }
 
                 if (gameState.mission && !gameState.brakingForMission && gameState.cooldown <= 0) { 
