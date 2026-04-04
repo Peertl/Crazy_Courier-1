@@ -616,10 +616,11 @@
             let onXAxis = Math.random() < 0.5; 
             let line = gridSteps[Math.floor(Math.random() * gridSteps.length)];
             let validSpawn = false; 
-            let aiX, aiY; 
-            let dir, dirX, dirY;
+            let aiX = 0, aiY = 0; 
+            let dir, dirX = 0, dirY = 0;
+            let attempts = 0;
             
-            while(!validSpawn) {
+            while(!validSpawn && attempts < 500) {
                 let startPos = (Math.random() * 4000) - 2000; 
                 dir = Math.random() > 0.5 ? 1 : -1;
                 
@@ -631,9 +632,25 @@
                     dirX = 0; dirY = dir; 
                 }
                 
-                if (Math.hypot(aiX - car.x, aiY - car.y) > 600) {
-                    validSpawn = true;
+                validSpawn = true;
+                
+                let distToPlayer = Math.hypot(aiX - car.x, aiY - car.y);
+                
+                // Bubble-System: Größerer Radius für weitreichendere Verteilung
+                if (distToPlayer < 1000 || distToPlayer > 2800) {
+                    validSpawn = false;
                 }
+                
+                // Zu nah an anderen KI-Autos? 
+                if (validSpawn) {
+                    for (let c of competitors) {
+                        if (c && Math.hypot(aiX - c.x, aiY - c.y) < 400) {
+                            validSpawn = false;
+                            break;
+                        }
+                    }
+                }
+                attempts++;
             }
             
             let brand = brandList[Math.floor(Math.random() * brandList.length)];
@@ -656,7 +673,8 @@
                 brand: brand, 
                 dpdVar: (brand === 'dpd') ? (Math.random() < 0.5 ? 1 : 2) : 0, 
                 state: 'driving', 
-                timer: 0 
+                timer: 0,
+                turnCooldown: 60 // Neu: Cooldown, damit sie nicht instant abbiegen beim Spawnen
             };
         }
 
@@ -892,7 +910,7 @@
             let minD = 0, maxD = 9999;
             if(car.type === 'bike') { minD = 450; maxD = 1200; } 
             else if(car.type === 'scooter') { minD = 600; maxD = 1500; } 
-            else if(car.type === 'transporter') { minD = 1200; maxD = 3000; }
+            else if(car.type === 'transporter') { minD = 900; maxD = 2000; }
             
             let availableBuildings = mapData.buildings.filter(b => { 
                 let d = Math.hypot(b.haloX - car.x, b.haloY - car.y); 
@@ -925,7 +943,6 @@
             Object.assign(car, VEHICLES[vehicleKey]);
             initMapAndAI(); 
             
-            // FÄHRT JETZT (WIRKLICH) AUF DER RECHTEN SEITE
             car.x = 0; car.y = 40; car.vx = 0; car.vy = 0; car.angle = 0; 
             car.speed = 0; car.steeringAngle = 0; car.lastCrash = 0; 
             car.lastSafeX = 0; car.lastSafeY = 40;
@@ -1129,13 +1146,6 @@
                 if (Math.abs(g.x - nextX) > checkDist || Math.abs(g.y - nextY) > checkDist) continue;
                 if(rectDist(nextX, nextY, g.x, g.y, g.w, g.h) < carRadius) return {hit: true, type: 'solid'};
             }
-            
-            /* Zäune sollen durchfahrbar sein - auskommentiert
-            for(let f of mapData.fences) {
-                if (Math.abs(f.x - nextX) > checkDist || Math.abs(f.y - nextY) > checkDist) continue;
-                if(rectDist(nextX, nextY, f.x, f.y, f.w, f.h) < carRadius) return {hit: true, type: 'solid'};
-            }
-            */
 
             for(let p of mapData.packstations) {
                 if (Math.abs(p.cx - nextX) > checkDist || Math.abs(p.cy - nextY) > checkDist) continue;
@@ -1153,15 +1163,15 @@
             for(let c of competitors) { 
                 if (Math.abs(c.x - nextX) > 150 || Math.abs(c.y - nextY) > 150) continue;
                 if(Math.hypot(nextX - c.x, nextY - c.y) < (carRadius + c.w/2 + 5)) {
-                    if (car.type === 'bike' && gameState.superHeroTimer <= 0) return {hit: true, type: 'solid'};
+                    if (car.type === 'bike' && gameState.superHeroTimer <= 0) return {hit: true, type: 'ai_bike', ai: c};
                     else return {hit: true, type: 'ai', ai: c}; 
                 }
             }
 
             if (attacker.state !== 'idle' && !attacker.state.startsWith('hit_ragdoll')) {
                 if(Math.hypot(nextX - attacker.x, nextY - attacker.y) < (carRadius + 10)) {
-                    if (car.type === 'bike' && gameState.superHeroTimer <= 0) return {hit: true, type: 'bike_attacker'};
-                    else return {hit: true, type: 'attacker'};
+                    if (car.type === 'bike' && gameState.superHeroTimer <= 0) return {hit: true, type: 'bike_attacker', attacker: attacker};
+                    else return {hit: true, type: 'attacker', attacker: attacker};
                 }
             }
             return {hit: false};
@@ -1362,6 +1372,13 @@
             for(let i = 0; i < competitors.length; i++) {
                 let c = competitors[i];
                 
+                let dToPlayer = Math.hypot(c.x - pTargetX, c.y - pTargetY);
+
+                if (dToPlayer > 3000 && c.state !== 'hit_ragdoll') {
+                    competitors[i] = spawnSingleAI();
+                    continue;
+                }
+                
                 if (c.state === 'hit_ragdoll') {
                     c.x += c.vx; c.y += c.vy; c.vx *= 0.95; c.vy *= 0.95; c.timer--;
                     if (c.timer <= 0) { 
@@ -1374,7 +1391,6 @@
                     continue;
                 }
 
-                let dToPlayer = Math.hypot(c.x - pTargetX, c.y - pTargetY);
                 if(dToPlayer < 200 && Math.random() < 0.02 && c.state === 'driving') { 
                     c.state = ' Prepare_Attack'; 
                     c.timer = 5; 
@@ -1382,22 +1398,96 @@
                 }
 
                 if(c.state === 'driving') {
+                    // --- NEU: INTELLIGENTE KREUZUNGS-LOGIK (Intersection Turning) ---
+                    if (c.turnCooldown > 0) c.turnCooldown--;
+                    
                     let nextX = c.x + c.dirX * c.speed; 
                     let nextY = c.y + c.dirY * c.speed;
-                    let isBlocked = false; 
-                    let blockedByPlayer = false;
 
-                    for(let other of competitors) {
-                        if(other.id === c.id) continue;
-                        if(Math.hypot(c.x - other.x, c.y - other.y) < 160) { 
-                            let angleToOther = Math.atan2(other.y - c.y, other.x - c.x); 
-                            let diffAngle = Math.abs(c.angle - angleToOther); 
-                            if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
-                            if (diffAngle < Math.PI/4) { isBlocked = true; break; }
+                    if (c.turnCooldown <= 0) {
+                        let turned = false;
+                        for (let line of gridSteps) {
+                            if (c.dirX !== 0) { // Fährt Horizontal
+                                let turnDownX = line - 40;
+                                let turnUpX = line + 40;
+                                
+                                // Prüfen, ob wir den Punkt für "Abbiegen nach Unten" überqueren
+                                if (!turned && ((c.x <= turnDownX && nextX >= turnDownX) || (c.x >= turnDownX && nextX <= turnDownX))) {
+                                    let isBottomEdge = (c.y > 1900); // Sind wir schon ganz unten?
+                                    let mustTurn = ((line === 2000 && c.dirX === 1) || (line === -2000 && c.dirX === -1)); // Sind wir am Kartenrand?
+                                    if (!isBottomEdge && (mustTurn || Math.random() < 0.25)) {
+                                        c.x = turnDownX; c.dirX = 0; c.dirY = 1; c.angle = Math.PI/2; c.baseAngle = c.angle;
+                                        c.turnCooldown = 150; turned = true; break;
+                                    }
+                                }
+                                // Prüfen, ob wir den Punkt für "Abbiegen nach Oben" überqueren
+                                if (!turned && ((c.x <= turnUpX && nextX >= turnUpX) || (c.x >= turnUpX && nextX <= turnUpX))) {
+                                    let isTopEdge = (c.y < -1900);
+                                    let mustTurn = ((line === 2000 && c.dirX === 1) || (line === -2000 && c.dirX === -1));
+                                    if (!isTopEdge && (mustTurn || Math.random() < 0.25)) {
+                                        c.x = turnUpX; c.dirX = 0; c.dirY = -1; c.angle = -Math.PI/2; c.baseAngle = c.angle;
+                                        c.turnCooldown = 150; turned = true; break;
+                                    }
+                                }
+                            } else if (c.dirY !== 0) { // Fährt Vertikal
+                                let turnRightY = line + 40;
+                                let turnLeftY = line - 40;
+                                
+                                // Prüfen auf "Abbiegen nach Rechts"
+                                if (!turned && ((c.y <= turnRightY && nextY >= turnRightY) || (c.y >= turnRightY && nextY <= turnRightY))) {
+                                    let isRightEdge = (c.x > 1900);
+                                    let mustTurn = ((line === 2000 && c.dirY === 1) || (line === -2000 && c.dirY === -1));
+                                    if (!isRightEdge && (mustTurn || Math.random() < 0.25)) {
+                                        c.y = turnRightY; c.dirX = 1; c.dirY = 0; c.angle = 0; c.baseAngle = c.angle;
+                                        c.turnCooldown = 150; turned = true; break;
+                                    }
+                                }
+                                // Prüfen auf "Abbiegen nach Links"
+                                if (!turned && ((c.y <= turnLeftY && nextY >= turnLeftY) || (c.y >= turnLeftY && nextY <= turnLeftY))) {
+                                    let isLeftEdge = (c.x < -1900);
+                                    let mustTurn = ((line === 2000 && c.dirY === 1) || (line === -2000 && c.dirY === -1));
+                                    if (!isLeftEdge && (mustTurn || Math.random() < 0.25)) {
+                                        c.y = turnLeftY; c.dirX = -1; c.dirY = 0; c.angle = Math.PI; c.baseAngle = c.angle;
+                                        c.turnCooldown = 150; turned = true; break;
+                                    }
+                                }
+                            }
+                        }
+                        // Wenn abgebogen wurde, berechne nextX und nextY neu!
+                        if (turned) {
+                            nextX = c.x + c.dirX * c.speed;
+                            nextY = c.y + c.dirY * c.speed;
                         }
                     }
 
-                    if (Math.hypot(nextX - car.x, nextY - car.y) < 90) { 
+                    let isBlocked = false; 
+                    let blockedByPlayer = false;
+                    let carAhead = null;
+
+                    for(let other of competitors) {
+                        if(other.id === c.id || other.state === 'hit_ragdoll') continue;
+                        let dist = Math.hypot(c.x - other.x, c.y - other.y);
+                        
+                        if (dist < 110) { 
+                            isBlocked = true; 
+                            break; 
+                        } 
+                        else if (dist < 220) {
+                            let angleToOther = Math.atan2(other.y - c.y, other.x - c.x); 
+                            let diffAngle = Math.abs(c.angle - angleToOther); 
+                            if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle;
+                            if (diffAngle < Math.PI/4) { 
+                                carAhead = other;
+                            }
+                        }
+                    }
+
+                    if (!isBlocked && carAhead) {
+                        if (carAhead.speed < c.speed) { c.speed *= 0.8; }
+                        if (carAhead.speed < 0.2 && Math.hypot(c.x - carAhead.x, c.y - carAhead.y) < 140) { isBlocked = true; }
+                    }
+
+                    if (Math.hypot(nextX - car.x, nextY - car.y) < 100) { 
                         isBlocked = true; blockedByPlayer = true; 
                     }
                     
@@ -1408,13 +1498,28 @@
                         if (blockedByPlayer) { 
                             c.state = ' Prepare_Attack'; c.timer = 5; c.speed = 0; 
                         } else { 
-                            c.state = 'traffic_jam'; c.timer = 120; c.speed = 0; 
+                            c.state = 'traffic_jam'; c.timer = 120 + Math.random()*60; c.speed = 0; 
                         }
                     } else {
                         c.x = nextX; c.y = nextY;
                         
-                        if(Math.abs(c.x) > 2080) { c.dirX *= -1; c.angle += Math.PI; c.baseAngle = c.angle; }
-                        if(Math.abs(c.y) > 2080) { c.dirY *= -1; c.angle += Math.PI; c.baseAngle = c.angle; }
+                        // --- NEU: SICHERHEITS-NETZ FÜR DEN MAP-RAND ---
+                        // KI darf nicht mehr einfach verschwinden, wenn der Spieler nah ist!
+                        if(Math.abs(c.x) > 2080 || Math.abs(c.y) > 2080) { 
+                            if (Math.hypot(c.x - car.x, c.y - car.y) < 1500) {
+                                // Notfall-Wende (Sichtbereich) anstatt Löschen
+                                c.dirX *= -1; c.dirY *= -1; 
+                                c.angle += Math.PI; c.baseAngle = c.angle; 
+                                if (c.dirX !== 0) c.y += c.dirX > 0 ? 80 : -80; 
+                                else c.x += c.dirY > 0 ? -80 : 80;
+                                c.turnCooldown = 150;
+                                c.x += c.dirX * 20; c.y += c.dirY * 20; // Zurück ins Feld schieben
+                            } else {
+                                // Nur löschen, wenn weit genug weg
+                                competitors[i] = spawnSingleAI();
+                            }
+                            continue;
+                        }
                         
                         if(Math.random() < 0.0005) { 
                             let drift = 15 + Math.random()*20; 
@@ -1442,27 +1547,44 @@
                 } else if(c.state === 'traffic_jam') {
                     c.timer--;
                     if(c.timer <= 0) { 
-                        if (Math.hypot(c.x - car.x, c.y - car.y) > 800) {
+                        if (Math.hypot(c.x - car.x, c.y - car.y) > 1000) {
                             competitors[i] = spawnSingleAI(); 
                         } else {
+                            // Wenden und auf die richtige Spur wechseln!
                             c.dirX *= -1; c.dirY *= -1; 
                             c.angle += Math.PI; c.baseAngle = c.angle; 
+                            if (c.dirX !== 0) {
+                                c.y += c.dirX > 0 ? 80 : -80;
+                            } else {
+                                c.x += c.dirY > 0 ? -80 : 80;
+                            }
                             c.state = 'driving'; c.speed = c.baseSpeed;
+                            c.turnCooldown = 150; // Wichtig, damit er nach dem Wenden nicht sofort wieder dreht
                         }
                     } else {
                         let isBlocked = false;
+                        let distToPlayer = Math.hypot(c.x - car.x, c.y - car.y);
+                        
+                        if (distToPlayer < 100) { isBlocked = true; }
+                        
                         for(let other of competitors) { 
-                            if(other.id === c.id) continue; 
-                            if(Math.hypot(c.x - other.x, c.y - other.y) < 160) { 
+                            if(other.id === c.id || other.state === 'hit_ragdoll') continue; 
+                            let dist = Math.hypot(c.x - other.x, c.y - other.y);
+                            
+                            if (dist < 110) { 
+                                isBlocked = true; break; 
+                            } else if(dist < 160) { 
                                 let angleToOther = Math.atan2(other.y - c.y, other.x - c.x); 
                                 let diffAngle = Math.abs(c.angle - angleToOther); 
                                 if (diffAngle > Math.PI) diffAngle = 2*Math.PI - diffAngle; 
                                 if (diffAngle < Math.PI/4) { isBlocked = true; break; } 
                             } 
                         }
-                        if (Math.hypot(c.x - car.x, c.y - car.y) < 90) { 
+                        
+                        if (distToPlayer < 90) { 
                             isBlocked = true; c.state = ' Prepare_Attack'; c.timer = 5; c.speed = 0; 
                         }
+                        
                         if(!isBlocked) { 
                             c.state = 'driving'; c.speed = c.baseSpeed; 
                         }
@@ -1472,9 +1594,17 @@
                     if(c.timer <= 0) {
                         c.state = 'Attack_Sequence'; c.timer = 60; 
                         attacker.sourceBrand = c.brand; attacker.attackingCompetitorId = c.id; 
-                        attacker.x = c.x; attacker.y = c.y; attacker.pose = 'throwing'; 
-                        attacker.targetX = c.x + Math.cos(c.angle) * car.l * 0.7; 
-                        attacker.targetY = c.y + Math.sin(c.angle) * car.l * 0.7; 
+                        
+                        let doorOffsetX = Math.cos(c.angle - Math.PI/2) * (c.w / 2 + 20);
+                        let doorOffsetY = Math.sin(c.angle - Math.PI/2) * (c.w / 2 + 20);
+                        
+                        attacker.x = c.x + doorOffsetX; 
+                        attacker.y = c.y + doorOffsetY; 
+                        attacker.pose = 'throwing'; 
+                        
+                        attacker.targetX = attacker.x + Math.cos(c.angle) * 30; 
+                        attacker.targetY = attacker.y + Math.sin(c.angle) * 30; 
+                        
                         attacker.state = 'to_attack_pos'; attacker.sourceCompetitor = c;
                     }
                 } else if(c.state === 'Attack_Sequence') { 
@@ -1511,7 +1641,7 @@
                             let angle = Math.atan2(pTargetY - attacker.y, pTargetX - attacker.x); 
                             projectiles.push({ x: attacker.x, y: attacker.y, z: 10, vx: Math.cos(angle)*4, vy: Math.sin(angle)*4, vz: 2, life: 40 }); 
                         } 
-                        attacker.state = 'after_throw'; attacker.pose = 'after_throw'; attacker.timer = 50; 
+                        attacker.state = 'after_throw'; attacker.pose = 'after_throw'; attacker.timer = 100; 
                     } 
                 } else if(attacker.state === 'after_throw') { 
                     attacker.lastAngle = Math.atan2(pTargetY - attacker.y, pTargetX - attacker.x); 
@@ -1522,7 +1652,13 @@
                             attacker.state = 'throwing'; attacker.pose = 'throwing'; attacker.timer = 15; 
                         } else { 
                             const c = competitors.find(comp => comp.id === attacker.attackingCompetitorId); 
-                            if(c) { attacker.state = 'back_to_car'; attacker.targetX = c.x; attacker.targetY = c.y; } 
+                            if(c) { 
+                                attacker.state = 'back_to_car'; 
+                                let doorOffsetX = Math.cos(c.angle - Math.PI/2) * (c.w / 2 + 20);
+                                let doorOffsetY = Math.sin(c.angle - Math.PI/2) * (c.w / 2 + 20);
+                                attacker.targetX = c.x + doorOffsetX; 
+                                attacker.targetY = c.y + doorOffsetY; 
+                            } 
                             else { attacker.state = 'idle'; attacker.attackingCompetitorId = null; } 
                         } 
                     } 
@@ -1757,7 +1893,6 @@
                 let grip = 0.2; 
                 if (car.type !== 'bike' && Math.abs(car.steeringAngle) > car.maxSteer * 0.6 && Math.abs(car.speed) > car.maxSpeed * 0.65) {
                     isDrifting = true;
-                    // GRIP WURDE ERHÖHT (0.045 -> 0.09) FÜR WENIGER GESCHWINDIGKEITSVERLUST!
                     grip = 0.09; 
                 }
 
@@ -1798,6 +1933,12 @@
                             gameState.penaltyActive = true; 
                             showFloatingText("- Karma", car.x, car.y - 40, true); sfx.bad(); 
                         }
+                    } else if (col.type === 'ai_bike') {
+                        car.speed *= -0.5; 
+                        let pushAngle = Math.atan2(car.y - col.ai.y, car.x - col.ai.x);
+                        car.x += Math.cos(pushAngle) * 10;
+                        car.y += Math.sin(pushAngle) * 10;
+                        car.vx = 0; car.vy = 0;
                     } else if (col.type === 'ai') {
                         if (isSuperHero) {
                             col.ai.state = 'hit_ragdoll'; 
@@ -1807,27 +1948,15 @@
                             car.x = nextX; car.y = nextY;
                         } else {
                             if (car.type === 'transporter') {
-                                // Weniger stark abbremsen, um besser schieben zu können
                                 car.speed *= 0.8; 
-                                
-                                // Vektor vom Transporter zum KI-Auto berechnen (für das seitliche Wegschieben)
                                 let pushAngle = Math.atan2(col.ai.y - car.y, col.ai.x - car.x);
-                                
-                                // KI-Auto in diese "Wegrutsch"-Richtung wegschieben
                                 col.ai.x += Math.cos(pushAngle) * (Math.abs(car.speed) + 8); 
                                 col.ai.y += Math.sin(pushAngle) * (Math.abs(car.speed) + 8); 
-                                
-                                // Das KI-Auto leicht wegdrehen (optischer Dreheffekt)
                                 let angleDiff = car.angle - pushAngle;
-                                angleDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff)); // Winkel normalisieren
+                                angleDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff)); 
                                 col.ai.angle += angleDiff > 0 ? 0.1 : -0.1;
-                                
-                                col.ai.state = 'stopped'; 
-                                col.ai.timer = 40; 
-                                
-                                // Transporter darf weiterrutschen/fahren
-                                car.x = nextX; 
-                                car.y = nextY;
+                                col.ai.state = 'stopped'; col.ai.timer = 40; 
+                                car.x = nextX; car.y = nextY;
                             } else {
                                 car.speed *= 0.2; 
                                 let canMoveX = !checkCollision(nextX, car.y).hit;
@@ -1846,16 +1975,19 @@
                             showFloatingText("BÄM!", attacker.x, attacker.y - 40); 
                             car.x = nextX; car.y = nextY;
                         } else {
-                            car.speed *= 0.2; 
-                            let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; 
-                            if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
-                            if(!canMoveX && !canMoveY) { car.x -= car.vx; car.y -= car.vy; car.speed = 0; car.vx = 0; car.vy = 0; } 
-                            if (car.type !== 'bike' && col.type === 'attacker') {
+                            if (col.type === 'bike_attacker') {
+                                car.speed *= -0.5; 
+                                let pushAngle = Math.atan2(car.y - col.attacker.y, car.x - col.attacker.x);
+                                car.x += Math.cos(pushAngle) * 10;
+                                car.y += Math.sin(pushAngle) * 10;
+                                car.vx = 0; car.vy = 0;
+                            } else {
+                                car.speed *= 0.2; 
+                                let canMoveX = !checkCollision(nextX, car.y).hit, canMoveY = !checkCollision(car.x, nextY).hit; 
+                                if (canMoveX) car.x = nextX; if (canMoveY) car.y = nextY; 
+                                if(!canMoveX && !canMoveY) { car.x -= car.vx; car.y -= car.vy; car.speed = 0; car.vx = 0; car.vy = 0; } 
                                 attacker.state = 'hit_ragdoll'; attacker.vx = Math.cos(car.angle) * 6; attacker.vy = Math.sin(car.angle) * 6; attacker.timer = 60; 
                                 gameState.penaltyActive = true; showFloatingText("- Karma", car.x, car.y - 40, true); sfx.bad();
-                            } else if (col.type === 'bike_attacker') { 
-                                attacker.x += Math.cos(car.angle) * 3; attacker.y += Math.sin(car.angle) * 3; 
-                                car.x -= car.vx * 0.5; car.y -= car.vy * 0.5; 
                             }
                         }
                     } else {
@@ -1868,10 +2000,21 @@
                     car.x = nextX; car.y = nextY; 
                 }
 
-                // Anti-Stuck Safeguard (falls man durch schnelle Rotation in ein Objekt glitched)
-                if (checkCollision(car.x, car.y).hit) {
-                    car.x = car.lastSafeX;
-                    car.y = car.lastSafeY;
+                // Anti-Stuck Safeguard
+                let currentOverlap = checkCollision(car.x, car.y);
+                if (currentOverlap.hit) {
+                    if (currentOverlap.type === 'ai' || currentOverlap.type === 'ai_bike') {
+                        let pushAngle = Math.atan2(car.y - currentOverlap.ai.y, car.x - currentOverlap.ai.x);
+                        car.x += Math.cos(pushAngle) * 6;
+                        car.y += Math.sin(pushAngle) * 6;
+                    } else if (currentOverlap.type === 'attacker' || currentOverlap.type === 'bike_attacker') {
+                        let pushAngle = Math.atan2(car.y - currentOverlap.attacker.y, car.x - currentOverlap.attacker.x);
+                        car.x += Math.cos(pushAngle) * 6;
+                        car.y += Math.sin(pushAngle) * 6;
+                    } else {
+                        car.x = car.lastSafeX;
+                        car.y = car.lastSafeY;
+                    }
                     car.speed *= -0.5; // Leichter Bounce-Back
                     car.vx = 0;
                     car.vy = 0;
@@ -1980,10 +2123,9 @@
                     ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.fillRect(rx+rw/2, ry, rw/2, rh); 
                     ctx.strokeStyle = '#222'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(rx+rw/2, ry); ctx.lineTo(rx+rw/2, ry+rh); ctx.stroke(); 
                 } 
-                // ctx.fillStyle = '#3e2723'; ctx.fillRect(b.doorX - 8, b.doorY - 8, 16, 16); 
             }
 
-            // Packstationen (NACH den Häusern gezeichnet, damit keine Schatten darauf fallen)
+            // Packstationen
             for(let ps of mapData.packstations) {
                 if (imgPackstation.complete && imgPackstation.naturalHeight !== 0) {
                     ctx.save(); ctx.translate(ps.cx, ps.cy); ctx.rotate(ps.angle);
